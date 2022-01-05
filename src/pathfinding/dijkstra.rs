@@ -35,7 +35,6 @@ pub fn compute_heuristics(map: &Vec<Vec<u8>>, start_loc: Vertex) -> HashMap<Vert
         let cur_node = open_list.pop().unwrap();
         for action in 0..4 {
             let next_loc = get_next_loc(cur_node.loc, action);
-            // Check if location is valid
             if is_invalid_loc(&map, next_loc) {
                 continue;
             }
