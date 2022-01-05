@@ -21,7 +21,7 @@ fn is_invalid_loc(map: &Vec<Vec<u16>>, next_loc: (i16, i16)) -> bool {
         || map[next_loc.0 as usize][next_loc.1 as usize] == 0 // Map obstacle, will never panic
 }
 
-/// Use Dijkstra to build a shortest path from a location
+/// Use Dijkstra to build a shortest path from a location to all other locations
 pub fn compute_heuristics(map: &Vec<Vec<u16>>, start_loc: Vertex) -> HashMap<Vertex, u16> {
     let map_size: usize = map.iter().map(Vec::len).sum();
     let mut open_list: BinaryHeap<Node> = BinaryHeap::new();
