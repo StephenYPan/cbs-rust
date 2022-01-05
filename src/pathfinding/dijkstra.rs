@@ -61,5 +61,7 @@ pub fn compute_heuristics(map: &Vec<Vec<u16>>, start_loc: Vertex) -> HashMap<Ver
     for (vertex, node) in &closed_list {
         h_values.insert(*vertex, node.g_val);
     }
+    // Some cells in the map cannot be traversed, meaning hashmap will be short of map_size
+    h_values.shrink_to_fit();
     h_values
 }
