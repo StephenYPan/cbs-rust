@@ -45,7 +45,9 @@ pub fn compute_heuristics(map: &Vec<Vec<u16>>, start_loc: Vertex) -> HashMap<Ver
                 Some(node) => {
                     // Update existing node if it is a shorter path
                     if new_node.g_val < node.g_val {
-                        *closed_list.entry(new_node.loc).or_insert(new_node) = new_node;
+                        // update key, guard against the key possibly not being set
+                        let val = closed_list.entry(new_node.loc).or_insert(new_node);
+                        *val = new_node;
                         open_list.push(new_node);
                     }
                 }
@@ -58,8 +60,8 @@ pub fn compute_heuristics(map: &Vec<Vec<u16>>, start_loc: Vertex) -> HashMap<Ver
     }
     // Build the heuristic table starting from start_loc
     let mut h_values: HashMap<Vertex, u16> = HashMap::with_capacity(map_size);
-    for (vertex, node) in &closed_list {
-        h_values.insert(*vertex, node.g_val);
+    for (vertex, node) in closed_list {
+        h_values.insert(vertex, node.g_val);
     }
     // Some cells in the map cannot be traversed, meaning hashmap will be short of map_size
     h_values.shrink_to_fit();
