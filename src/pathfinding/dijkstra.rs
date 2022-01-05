@@ -1,28 +1,30 @@
 use crate::datatype::{node::Node, vertex::Vertex};
 use std::collections::{BinaryHeap, HashMap};
 
-const DIRECTION: [(i16, i16); 4] = [
+const DIRECTION: [(i32, i32); 4] = [
     (0, -1), // Left
     (1, 0),  // Up
     (0, 1),  // Right
     (-1, 0), // Down
 ];
 
-fn get_next_loc(loc: Vertex, action: usize) -> (i16, i16) {
+/// Size of tuple is (i32, i32) to avoid the edge case where
+/// units in the Vertex (u16, u16) is between 2^15 and 2^16-1.
+fn get_next_loc(loc: Vertex, action: usize) -> (i32, i32) {
     let dir = DIRECTION[action];
-    (loc.0 as i16 + dir.0, loc.1 as i16 + dir.1)
+    (loc.0 as i32 + dir.0, loc.1 as i32 + dir.1)
 }
 
-fn is_invalid_loc(map: &Vec<Vec<u16>>, next_loc: (i16, i16)) -> bool {
-    let height = map.len() as i16;
-    let width = map[0].len() as i16;
+fn is_invalid_loc(map: &Vec<Vec<u8>>, next_loc: (i32, i32)) -> bool {
+    let height = map.len() as i32;
+    let width = map[0].len() as i32;
     next_loc.0 < 0 || next_loc.0 >= height // Out of bound in vertical axis
         || next_loc.1 < 0 || next_loc.1 >= width // Out of bound in horizontal axis
         || map[next_loc.0 as usize][next_loc.1 as usize] == 0 // Map obstacle, will never panic
 }
 
 /// Use Dijkstra to build a shortest path from a location to all other locations
-pub fn compute_heuristics(map: &Vec<Vec<u16>>, start_loc: Vertex) -> HashMap<Vertex, u16> {
+pub fn compute_heuristics(map: &Vec<Vec<u8>>, start_loc: Vertex) -> HashMap<Vertex, u16> {
     let map_size: usize = map.iter().map(Vec::len).sum();
     let mut open_list: BinaryHeap<Node> = BinaryHeap::new();
     let mut closed_list: HashMap<Vertex, Node> = HashMap::with_capacity(map_size);
