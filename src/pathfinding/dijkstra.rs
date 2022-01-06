@@ -1,4 +1,5 @@
-use crate::datatype::{node::Node, vertex::Vertex};
+use crate::datatype::vertex::Vertex;
+use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap};
 
 const DIRECTION: [(i32, i32); 4] = [
@@ -66,4 +67,43 @@ pub fn compute_heuristics(map: &Vec<Vec<u8>>, start_loc: Vertex) -> HashMap<Vert
         h_values.insert(vertex, node.g_val);
     }
     h_values
+}
+
+#[derive(Debug, Eq, Copy, Clone)]
+pub struct Node {
+    pub loc: Vertex,
+    pub g_val: u16,
+}
+
+impl PartialEq for Node {
+    fn eq(&self, other: &Self) -> bool {
+        self.loc.eq(&other.loc)
+    }
+}
+
+impl PartialEq<Vertex> for Node {
+    fn eq(&self, other: &Vertex) -> bool {
+        self.loc == *other
+    }
+}
+
+impl Ord for Node {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.g_val.cmp(&other.g_val).reverse()
+    }
+}
+
+impl PartialOrd for Node {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Node {
+    pub fn new(loc: Vertex, g_val: u16) -> Node {
+        Node {
+            loc: loc,
+            g_val: g_val,
+        }
+    }
 }
