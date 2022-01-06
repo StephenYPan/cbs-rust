@@ -81,12 +81,6 @@ impl PartialEq for Node {
     }
 }
 
-impl PartialEq<Vertex> for Node {
-    fn eq(&self, other: &Vertex) -> bool {
-        self.loc == *other
-    }
-}
-
 impl Ord for Node {
     fn cmp(&self, other: &Self) -> Ordering {
         self.g_val.cmp(&other.g_val).reverse()
