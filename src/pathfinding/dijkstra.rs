@@ -70,9 +70,9 @@ pub fn compute_heuristics(map: &Vec<Vec<u8>>, start_loc: Vertex) -> HashMap<Vert
 }
 
 #[derive(Debug, Eq, Copy, Clone)]
-pub struct Node {
-    pub loc: Vertex,
-    pub g_val: u16,
+struct Node {
+    loc: Vertex,
+    g_val: u16,
 }
 
 impl PartialEq for Node {
@@ -100,7 +100,7 @@ impl PartialOrd for Node {
 }
 
 impl Node {
-    pub fn new(loc: Vertex, g_val: u16) -> Node {
+    fn new(loc: Vertex, g_val: u16) -> Node {
         Node {
             loc: loc,
             g_val: g_val,
