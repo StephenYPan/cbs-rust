@@ -12,7 +12,7 @@ pub fn astar(
     let map_size: usize = map.iter().map(Vec::len).sum();
     let mut open_list: BinaryHeap<Node> = BinaryHeap::new();
     let mut closed_list: HashMap<(Vertex, u16), Node> = HashMap::with_capacity(map_size);
-    let mut tree = Tree { tree: Vec::new() };
+    let mut tree = Tree::new();
     let root_idx = tree.add_node(
         start_loc,
         0,
@@ -73,6 +73,10 @@ struct Tree {
 }
 
 impl Tree {
+    fn new() -> Tree {
+        Tree { tree: Vec::new() }
+    }
+
     fn add_node(
         &mut self,
         loc: Vertex,
