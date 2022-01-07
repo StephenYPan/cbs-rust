@@ -84,6 +84,7 @@ impl Tree {
     /// If node exists, then update and return its index.
     /// Otherwise, add a new node and return its index
     fn add_node(&mut self, loc: Vertex, g_val: u16, h_val: u16, parent: usize) -> usize {
+        // To reduce the number of iterations, we start from the end.
         let idx = self.tree.len();
         for (i, n) in self.tree.iter_mut().rev().enumerate() {
             if n.g_val == g_val && n.loc == loc {
