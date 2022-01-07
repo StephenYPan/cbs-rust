@@ -2,7 +2,6 @@ use crate::datatype::vertex::Vertex;
 use crate::pathfinding::lib::{get_next_loc, is_invalid_loc};
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap};
-// use std::mem::size_of_val;
 
 pub fn astar(
     map: &Vec<Vec<u8>>,
@@ -16,11 +15,6 @@ pub fn astar(
     let mut tree = Tree::new();
     let root_idx = tree.add_node(start_loc, 0, *h_values.get(&start_loc).unwrap(), 0, 0);
     let root = tree.tree[root_idx];
-    // println!("node size (bytes): {:?}", size_of_val(&root));
-    // println!(
-    //     "parent idx size (bytes): {:?}",
-    //     size_of_val(&tree.parent_node[root_idx])
-    // );
     closed_list.insert((root.loc, root.timestep), root_idx);
     open_list.push(root);
     while !open_list.is_empty() {
@@ -89,7 +83,7 @@ impl Tree {
         timestep: u16,
         parent: usize,
     ) -> usize {
-        // Check if node exists, update, and return the index
+        // If node exists, then update and return its index
         for (i, n) in self.tree.iter_mut().enumerate() {
             if n.loc == loc && n.timestep == timestep {
                 n.g_val = g_val;
@@ -98,7 +92,7 @@ impl Tree {
                 return i;
             }
         }
-        // Add new node and return the index
+        // Add new node and return its index
         let idx = self.tree.len();
         let node = Node::new(loc, g_val, h_val, timestep);
         self.tree.push(node);
@@ -106,10 +100,11 @@ impl Tree {
         idx
     }
 
-    /// Runtime is O(n + c), we have to iterate through the whole vector to find
-    /// the goal node index and then hop from the index to the root. In practice
-    /// goal node are usually located in the back of the vector, so the runtime
-    /// is smaller than n.
+    /// Runtime is O(n + c) where n is the number of nodes in the tree, and c is
+    /// the path length. We have to iterate through the whole tree to find the
+    /// goal node index and then hop from the goal node index to the start node.
+    /// In practice goal node are usually located in the back of the vector, so
+    /// the runtime is smaller than n.
     fn get_path(&self, goal_node: Node) -> Vec<Vertex> {
         // Find index of goal node
         let mut goal_idx: usize = 0;
@@ -120,7 +115,7 @@ impl Tree {
                 break;
             }
         }
-        // Travel backwards from the goal index to the root
+        // Travel backwards from the goal index to the start node.
         let mut path: Vec<Vertex> = Vec::new();
         path.push(goal_node.loc);
         let mut next_idx = self.parent_node[goal_idx];
@@ -128,7 +123,7 @@ impl Tree {
             path.push(self.tree[next_idx].loc);
             next_idx = self.parent_node[next_idx];
         }
-        path.push(self.tree[next_idx].loc);
+        path.push(self.tree[next_idx].loc); // Add start location
         path.reverse();
         path
     }
