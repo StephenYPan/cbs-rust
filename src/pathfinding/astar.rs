@@ -26,9 +26,9 @@ pub fn astar(
 
     while !open_list.is_empty() {
         let cur_node = open_list.pop().unwrap();
-        let cur_key = (cur_node.loc, cur_node.g_val);
+        let cur_idx = *closed_list.get(&(cur_node.loc, cur_node.g_val)).unwrap();
         if cur_node.loc == goal_loc {
-            return Some(tree.get_path(*closed_list.get(&cur_key).unwrap()));
+            return Some(tree.get_path(cur_idx));
         }
         for action in 0..5 {
             let next_loc = match get_next_loc(cur_node.loc, action) {
@@ -43,7 +43,7 @@ pub fn astar(
                 next_loc,
                 cur_node.g_val + 1,
                 *h_values.get(&next_loc).unwrap(),
-                *closed_list.get(&cur_key).unwrap(),
+                cur_idx,
             );
             let new_node = tree.tree[new_idx];
             let new_key = (new_node.loc, new_node.g_val);
