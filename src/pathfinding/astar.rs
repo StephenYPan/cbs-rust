@@ -90,8 +90,8 @@ impl Tree {
             if n.g_val == g_val && n.loc == loc {
                 // h_val does not need to be updated.
                 // The location does not change.
-                self.parent_node[idx - i] = parent;
-                return idx - i;
+                self.parent_node[idx - i - 1] = parent;
+                return idx - i - 1;
             }
         }
         self.tree.push(Node::new(loc, g_val, h_val));
