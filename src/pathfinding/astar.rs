@@ -145,6 +145,10 @@ impl PartialOrd for Node {
     fn lt(&self, other: &Self) -> bool {
         self.g_val + self.h_val < other.g_val + other.h_val
     }
+
+    fn gt(&self, other: &Self) -> bool {
+        self.g_val + self.h_val > other.g_val + other.h_val
+    }
 }
 
 impl Node {
