@@ -2,7 +2,7 @@ use crate::datatype::vertex::Vertex;
 use crate::pathfinding::lib::{get_next_loc, is_invalid_loc};
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap};
-use std::mem::size_of_val;
+// use std::mem::size_of_val;
 
 pub fn astar(
     map: &Vec<Vec<u8>>,
@@ -14,14 +14,13 @@ pub fn astar(
     let mut open_list: BinaryHeap<Node> = BinaryHeap::new();
     let mut closed_list: HashMap<(Vertex, u16), usize> = HashMap::with_capacity(map_size);
     let mut tree = Tree::new();
-    let root_idx = tree.add_node(start_loc, 0, *h_values.get(&start_loc).unwrap(), 0, None);
+    let root_idx = tree.add_node(start_loc, 0, *h_values.get(&start_loc).unwrap(), 0, 0);
     let root = tree.tree[root_idx];
-    println!("node size (bytes): {:?}", size_of_val(&root));
-    println!(
-        "parent size (bytes): {:?}",
-        size_of_val(&tree.parent_node[root_idx])
-    );
-
+    // println!("node size (bytes): {:?}", size_of_val(&root));
+    // println!(
+    //     "parent idx size (bytes): {:?}",
+    //     size_of_val(&tree.parent_node[root_idx])
+    // );
     closed_list.insert((root.loc, root.timestep), root_idx);
     open_list.push(root);
     while open_list.len() > 0 {
@@ -44,7 +43,7 @@ pub fn astar(
                 cur_node.g_val + 1,
                 *h_values.get(&next_loc).unwrap(),
                 cur_node.timestep + 1,
-                Some(*closed_list.get(&cur_key).unwrap()),
+                *closed_list.get(&cur_key).unwrap(),
             );
             let new_node = tree.tree[new_idx];
             let new_key = (new_node.loc, new_node.timestep);
@@ -71,7 +70,7 @@ pub fn astar(
 /// source: https://dev.to/deciduously/no-more-tears-no-more-knots-arena-allocated-trees-in-rust-44k6
 struct Tree {
     tree: Vec<Node>,
-    parent_node: Vec<Option<usize>>,
+    parent_node: Vec<usize>,
 }
 
 impl Tree {
@@ -88,7 +87,7 @@ impl Tree {
         g_val: u16,
         h_val: u16,
         timestep: u16,
-        parent: Option<usize>,
+        parent: usize,
     ) -> usize {
         // Check if node exists, update, and return the index
         for (i, n) in self.tree.iter_mut().enumerate() {
@@ -124,12 +123,12 @@ impl Tree {
             }
         }
         // Travel backwards from the goal index to the root
-        let mut optional = self.parent_node[goal_idx];
-        while let Some(next_idx) = optional {
-            let next_node = &self.tree[next_idx];
-            path.push(next_node.loc);
-            optional = self.parent_node[next_idx];
+        let mut next_idx = self.parent_node[goal_idx];
+        while next_idx != 0 {
+            path.push(self.tree[next_idx].loc);
+            next_idx = self.parent_node[next_idx];
         }
+        path.push(self.tree[next_idx].loc);
         path.reverse();
         path
     }
