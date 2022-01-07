@@ -49,6 +49,7 @@ pub fn astar(
             let new_key = (new_node.loc, new_node.g_val);
             match closed_list.get(&new_key) {
                 Some(_) => {
+                    // The two nodes are the same, if condition will never be true.
                     // // Update existing node if it is a shorter path
                     // if new_node < tree.tree[*old_idx] {
                     //     // Update key, guard against the key possibly not being set
