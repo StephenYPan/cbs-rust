@@ -48,14 +48,14 @@ pub fn astar(
             let new_node = tree.tree[new_idx];
             let new_key = (new_node.loc, new_node.g_val);
             match closed_list.get(&new_key) {
-                Some(old_idx) => {
-                    // Update existing node if it is a shorter path
-                    if new_node < tree.tree[*old_idx] {
-                        // Update key, guard against the key possibly not being set
-                        let val = closed_list.entry(new_key).or_insert(new_idx);
-                        *val = new_idx;
-                        open_list.push(new_node)
-                    }
+                Some(_) => {
+                    // // Update existing node if it is a shorter path
+                    // if new_node < tree.tree[*old_idx] {
+                    //     // Update key, guard against the key possibly not being set
+                    //     let val = closed_list.entry(new_key).or_insert(new_idx);
+                    //     *val = new_idx;
+                    //     open_list.push(new_node)
+                    // }
                 }
                 None => {
                     closed_list.insert(new_key, new_idx);
