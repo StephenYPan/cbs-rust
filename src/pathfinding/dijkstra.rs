@@ -31,8 +31,7 @@ pub fn compute_heuristics(map: &Vec<Vec<u8>>, start_loc: Vertex) -> HashMap<Vert
             let key = new_node.loc;
             match closed_list.get(&key) {
                 Some(_) => {
-                    // Since the expansion of nodes is by minimum g_val, subsequent
-                    // expanded nodes of the same location will have a greater g_val.
+                    // Since each action is uniform cost the if condition is never true.
                     // // Update existing node if it is a shorter path
                     // if new_node < *node {
                     //     // Update key, guard against the key possibly not being set
