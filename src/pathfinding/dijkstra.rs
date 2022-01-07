@@ -8,9 +8,11 @@ pub fn compute_heuristics(map: &Vec<Vec<u8>>, start_loc: Vertex) -> HashMap<Vert
     let map_size: usize = map.iter().map(Vec::len).sum();
     let mut open_list: BinaryHeap<Node> = BinaryHeap::new();
     let mut closed_list: HashMap<Vertex, Node> = HashMap::with_capacity(map_size);
+
     let root = Node::new(start_loc, 0);
     closed_list.insert(root.loc, root);
     open_list.push(root);
+
     while open_list.len() > 0 {
         let cur_node = open_list.pop().unwrap();
         for action in 0..4 {
@@ -71,6 +73,7 @@ impl PartialOrd for Node {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
+
     fn lt(&self, other: &Self) -> bool {
         self.g_val < other.g_val
     }
