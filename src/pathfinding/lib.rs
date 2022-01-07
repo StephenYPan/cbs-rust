@@ -1,6 +1,6 @@
 use crate::datatype::vertex::Vertex;
 
-const DIRECTION: [(i32, i32); 5] = [
+const ACTION: [(i32, i32); 5] = [
     (0, -1), // Left
     (1, 0),  // Up
     (0, 1),  // Right
@@ -11,7 +11,7 @@ const DIRECTION: [(i32, i32); 5] = [
 /// Size of tuple is (i32, i32) to avoid the edge case where
 /// units in the Vertex (u16, u16) is between 2^15 and 2^16-1.
 pub fn get_next_loc(loc: Vertex, action: usize) -> Option<Vertex> {
-    let dir = DIRECTION[action];
+    let dir = ACTION[action];
     let x = loc.1 as i32 + dir.1;
     let y = loc.0 as i32 + dir.0;
     if x < 0 || y < 0 {
