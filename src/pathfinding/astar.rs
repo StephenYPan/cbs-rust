@@ -84,15 +84,15 @@ impl Tree {
     /// If node exists, then update and return its index.
     /// Otherwise, add a new node and return its index
     fn add_node(&mut self, loc: Vertex, g_val: u16, h_val: u16, parent: usize) -> usize {
-        for (i, n) in self.tree.iter_mut().enumerate() {
+        let idx = self.tree.len();
+        for (i, n) in self.tree.iter_mut().rev().enumerate() {
             if n.g_val == g_val && n.loc == loc {
                 // h_val does not need to be updated.
                 // The location does not change.
-                self.parent_node[i] = parent;
-                return i;
+                self.parent_node[idx - i] = parent;
+                return idx - i;
             }
         }
-        let idx = self.tree.len();
         self.tree.push(Node::new(loc, g_val, h_val));
         self.parent_node.push(parent);
         idx
