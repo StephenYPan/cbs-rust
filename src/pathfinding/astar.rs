@@ -3,6 +3,7 @@ use crate::pathfinding::lib::{get_next_loc, is_invalid_loc};
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap};
 
+/// Find the shortest path from start to goal such that it satisfies the given constraints.
 pub fn astar(
     map: &Vec<Vec<u8>>,
     start_loc: Vertex,
