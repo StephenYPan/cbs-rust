@@ -91,8 +91,7 @@ impl Tree {
         }
         // Add new node and return its index
         let idx = self.tree.len();
-        let node = Node::new(loc, g_val, h_val);
-        self.tree.push(node);
+        self.tree.push(Node::new(loc, g_val, h_val));
         self.parent_node.push(parent);
         idx
     }
