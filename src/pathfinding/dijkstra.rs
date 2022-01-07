@@ -9,8 +9,8 @@ pub fn compute_heuristics(map: &Vec<Vec<u8>>, start_loc: Vertex) -> HashMap<Vert
     let mut open_list: BinaryHeap<Node> = BinaryHeap::new();
     let mut closed_list: HashMap<Vertex, Node> = HashMap::with_capacity(map_size);
     let root = Node::new(start_loc, 0);
-    open_list.push(root);
     closed_list.insert(root.loc, root);
+    open_list.push(root);
     while open_list.len() > 0 {
         let cur_node = open_list.pop().unwrap();
         for action in 0..4 {
