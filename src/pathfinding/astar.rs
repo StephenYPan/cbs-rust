@@ -13,10 +13,12 @@ pub fn astar(
     let mut open_list: BinaryHeap<Node> = BinaryHeap::new();
     let mut closed_list: HashMap<(Vertex, u16), usize> = HashMap::with_capacity(map_size);
     let mut tree = Tree::new();
+
     let root_idx = tree.add_node(start_loc, 0, *h_values.get(&start_loc).unwrap(), 0, 0);
     let root = tree.tree[root_idx];
     closed_list.insert((root.loc, root.timestep), root_idx);
     open_list.push(root);
+
     while !open_list.is_empty() {
         let cur_node = open_list.pop().unwrap();
         if cur_node.loc == goal_loc {
