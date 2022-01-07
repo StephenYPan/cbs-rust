@@ -142,6 +142,7 @@ impl PartialOrd for Node {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
+
     fn lt(&self, other: &Self) -> bool {
         self.g_val + self.h_val < other.g_val + other.h_val
     }
