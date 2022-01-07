@@ -84,7 +84,7 @@ impl Tree {
     fn add_node(&mut self, loc: Vertex, g_val: u16, h_val: u16, parent: usize) -> usize {
         // If node exists, then update and return its index
         for (i, n) in self.tree.iter_mut().enumerate() {
-            if n.loc == loc && n.g_val == g_val {
+            if n.g_val == g_val && n.loc == loc {
                 self.parent_node[i] = parent;
                 return i;
             }
