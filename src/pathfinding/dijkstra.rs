@@ -13,7 +13,7 @@ pub fn compute_heuristics(map: &Vec<Vec<u8>>, start_loc: Vertex) -> HashMap<Vert
     closed_list.insert(root.loc, root);
     open_list.push(root);
 
-    while open_list.len() > 0 {
+    while !open_list.is_empty() {
         let cur_node = open_list.pop().unwrap();
         for action in 0..4 {
             let next_loc = match get_next_loc(cur_node.loc, action) {

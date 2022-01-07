@@ -23,7 +23,7 @@ pub fn astar(
     // );
     closed_list.insert((root.loc, root.timestep), root_idx);
     open_list.push(root);
-    while open_list.len() > 0 {
+    while !open_list.is_empty() {
         let cur_node = open_list.pop().unwrap();
         if cur_node.loc == goal_loc {
             return Some(tree.get_path(cur_node));
@@ -111,8 +111,6 @@ impl Tree {
     /// goal node are usually located in the back of the vector, so the runtime
     /// is smaller than n.
     fn get_path(&self, goal_node: Node) -> Vec<Vertex> {
-        let mut path: Vec<Vertex> = Vec::new();
-        path.push(goal_node.loc);
         // Find index of goal node
         let mut goal_idx: usize = 0;
         let num_nodes = self.tree.len();
@@ -123,6 +121,8 @@ impl Tree {
             }
         }
         // Travel backwards from the goal index to the root
+        let mut path: Vec<Vertex> = Vec::new();
+        path.push(goal_node.loc);
         let mut next_idx = self.parent_node[goal_idx];
         while next_idx != 0 {
             path.push(self.tree[next_idx].loc);
