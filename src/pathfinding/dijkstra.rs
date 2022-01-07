@@ -30,14 +30,16 @@ pub fn compute_heuristics(map: &Vec<Vec<u8>>, start_loc: Vertex) -> HashMap<Vert
             let new_node = Node::new(next_loc, cur_node.g_val + 1);
             let key = new_node.loc;
             match closed_list.get(&key) {
-                Some(node) => {
-                    // Update existing node if it is a shorter path
-                    if new_node < *node {
-                        // Update key, guard against the key possibly not being set
-                        let val = closed_list.entry(key).or_insert(new_node);
-                        *val = new_node;
-                        open_list.push(new_node);
-                    }
+                Some(_) => {
+                    // Since the expansion of nodes is by minimum g_val, subsequent
+                    // expanded nodes of the same location will have a greater g_val.
+                    // // Update existing node if it is a shorter path
+                    // if new_node < *node {
+                    //     // Update key, guard against the key possibly not being set
+                    //     let val = closed_list.entry(key).or_insert(new_node);
+                    //     *val = new_node;
+                    //     open_list.push(new_node);
+                    // }
                 }
                 None => {
                     closed_list.insert(key, new_node);
@@ -80,6 +82,10 @@ impl PartialOrd for Node {
 
     fn lt(&self, other: &Self) -> bool {
         self.g_val < other.g_val
+    }
+
+    fn gt(&self, other: &Self) -> bool {
+        self.g_val > other.g_val
     }
 }
 
