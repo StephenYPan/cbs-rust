@@ -2,6 +2,7 @@ use crate::datatype::vertex::Vertex;
 use crate::pathfinding::lib::{get_next_loc, is_invalid_loc};
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap};
+use std::mem::size_of_val;
 
 pub fn astar(
     map: &Vec<Vec<u8>>,
@@ -15,13 +16,20 @@ pub fn astar(
     let mut tree = Tree::new();
     let root_idx = tree.add_node(start_loc, 0, *h_values.get(&start_loc).unwrap(), 0, None);
     let root = tree.tree[root_idx];
+    println!("node size (bytes): {:?}", size_of_val(&root));
+    println!(
+        "parent size (bytes): {:?}",
+        size_of_val(&tree.parent_node[root_idx])
+    );
+
     closed_list.insert((root.loc, root.timestep), root_idx);
     open_list.push(root);
     while open_list.len() > 0 {
         let cur_node = open_list.pop().unwrap();
         if cur_node.loc == goal_loc {
-            return Some(tree.get_path(cur_node.idx));
+            return Some(tree.get_path(cur_node));
         }
+        let cur_key = (cur_node.loc, cur_node.timestep);
         for action in 0..5 {
             let next_loc = match get_next_loc(cur_node.loc, action) {
                 Some(vertex) => vertex,
@@ -36,22 +44,22 @@ pub fn astar(
                 cur_node.g_val + 1,
                 *h_values.get(&next_loc).unwrap(),
                 cur_node.timestep + 1,
-                Some(cur_node.idx),
+                Some(*closed_list.get(&cur_key).unwrap()),
             );
             let new_node = tree.tree[new_idx];
-            let key = (new_node.loc, new_node.timestep);
-            match closed_list.get(&key) {
+            let new_key = (new_node.loc, new_node.timestep);
+            match closed_list.get(&new_key) {
                 Some(old_idx) => {
                     // Update existing node if it is a shorter path
                     if new_node < tree.tree[*old_idx] {
                         // Update key, guard against the key possibly not being set
-                        let val = closed_list.entry(key).or_insert(new_idx);
+                        let val = closed_list.entry(new_key).or_insert(new_idx);
                         *val = new_idx;
                         open_list.push(new_node)
                     }
                 }
                 None => {
-                    closed_list.insert(key, new_idx);
+                    closed_list.insert(new_key, new_idx);
                     open_list.push(new_node);
                 }
             }
@@ -83,28 +91,40 @@ impl Tree {
         parent: Option<usize>,
     ) -> usize {
         // Check if node exists, update, and return the index
-        for n in &mut self.tree {
+        for (i, n) in self.tree.iter_mut().enumerate() {
             if n.loc == loc && n.timestep == timestep {
                 n.g_val = g_val;
                 n.h_val = h_val;
-                self.parent_node[n.idx] = parent;
-                return n.idx;
+                self.parent_node[i] = parent;
+                return i;
             }
         }
         // Add new node and return the index
         let idx = self.tree.len();
-        let node = Node::new(idx, loc, g_val, h_val, timestep);
+        let node = Node::new(loc, g_val, h_val, timestep);
         self.tree.push(node);
         self.parent_node.push(parent);
         idx
     }
 
-    fn get_path(&self, idx: usize) -> Vec<Vertex> {
-        // Travel backwards from a index to the root
+    /// Runtime is O(n + c), we have to iterate through the whole vector to find
+    /// the goal node index and then hop from the index to the root. In practice
+    /// goal node are usually located in the back of the vector, so the runtime
+    /// is smaller than n.
+    fn get_path(&self, goal_node: Node) -> Vec<Vertex> {
         let mut path: Vec<Vertex> = Vec::new();
-        let goal_node = &self.tree[idx];
         path.push(goal_node.loc);
-        let mut optional = self.parent_node[idx];
+        // Find index of goal node
+        let mut goal_idx: usize = 0;
+        let num_nodes = self.tree.len();
+        for (i, n) in self.tree.iter().rev().enumerate() {
+            if *n == goal_node {
+                goal_idx = num_nodes - i;
+                break;
+            }
+        }
+        // Travel backwards from the goal index to the root
+        let mut optional = self.parent_node[goal_idx];
         while let Some(next_idx) = optional {
             let next_node = &self.tree[next_idx];
             path.push(next_node.loc);
@@ -117,7 +137,6 @@ impl Tree {
 
 #[derive(Debug, Eq, Copy, Clone)]
 struct Node {
-    idx: usize,
     loc: Vertex,
     g_val: u16,
     h_val: u16,
@@ -149,9 +168,8 @@ impl PartialOrd for Node {
 }
 
 impl Node {
-    fn new(idx: usize, loc: Vertex, g_val: u16, h_val: u16, timestep: u16) -> Node {
+    fn new(loc: Vertex, g_val: u16, h_val: u16, timestep: u16) -> Node {
         Node {
-            idx: idx,
             loc: loc,
             g_val: g_val,
             h_val: h_val,
