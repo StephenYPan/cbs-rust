@@ -84,8 +84,16 @@ impl PartialOrd for Node {
         self.g_val < other.g_val
     }
 
+    fn le(&self, other: &Self) -> bool {
+        self.g_val <= other.g_val
+    }
+
     fn gt(&self, other: &Self) -> bool {
         self.g_val > other.g_val
+    }
+
+    fn ge(&self, other: &Self) -> bool {
+        self.g_val >= other.g_val
     }
 }
 
