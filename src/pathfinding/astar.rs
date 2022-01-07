@@ -10,7 +10,11 @@ pub fn astar(
     goal_loc: Vertex,
     h_values: &HashMap<Vertex, u16>,
 ) -> Option<Vec<Vertex>> {
-    let map_size: usize = map.iter().map(Vec::len).sum();
+    let map_size: usize = map
+        .iter()
+        .flat_map(|v| v.iter())
+        .filter(|&x| *x == 1)
+        .count();
     let mut open_list: BinaryHeap<Node> = BinaryHeap::new();
     let mut closed_list: HashMap<(Vertex, u16), usize> = HashMap::with_capacity(map_size);
     let mut tree = Tree::new();

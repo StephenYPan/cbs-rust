@@ -5,7 +5,11 @@ use std::collections::{BinaryHeap, HashMap};
 
 /// Use Dijkstra to build a shortest path from a location to all other locations
 pub fn compute_heuristics(map: &Vec<Vec<u8>>, start_loc: Vertex) -> HashMap<Vertex, u16> {
-    let map_size: usize = map.iter().map(Vec::len).sum();
+    let map_size: usize = map
+        .iter()
+        .flat_map(|v| v.iter())
+        .filter(|&x| *x == 1)
+        .count();
     let mut open_list: BinaryHeap<Node> = BinaryHeap::new();
     let mut closed_list: HashMap<Vertex, Node> = HashMap::with_capacity(map_size);
 
