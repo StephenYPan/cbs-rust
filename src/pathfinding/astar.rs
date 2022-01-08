@@ -13,10 +13,8 @@ pub fn astar(
     let mut open_list: BinaryHeap<Node> = BinaryHeap::new();
     let mut tree = Tree::new();
 
-    match tree.add_node(start_loc, 0, *h_values.get(&start_loc).unwrap(), 0, 0) {
-        Some(node) => open_list.push(node),
-        None => {}
-    }
+    let root_h_val = *h_values.get(&start_loc).unwrap();
+    open_list.push(tree.add_node(start_loc, 0, root_h_val, 0, 0).unwrap());
 
     while !open_list.is_empty() {
         let cur_node = open_list.pop().unwrap();
