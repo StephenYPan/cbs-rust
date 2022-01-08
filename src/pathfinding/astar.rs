@@ -88,7 +88,7 @@ impl Tree {
             None => {
                 let node = Node::new(loc, g_val, h_val, timestep);
                 let node_idx = self.tree.len();
-                self.tree.push(Node::new(loc, g_val, h_val, timestep));
+                self.tree.push(node);
                 self.parent_node.push(parent);
                 self.visited_node.insert((loc, timestep), node_idx);
                 Some(node)
