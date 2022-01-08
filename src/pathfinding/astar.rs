@@ -73,16 +73,16 @@ impl Tree {
         parent: usize,
     ) -> Option<Node> {
         match self.visited_node.get(&(loc, timestep)) {
-            Some(idx) => {
-                let prev_f_val = self.tree[*idx].g_val + self.tree[*idx].h_val;
+            Some(&idx) => {
+                let prev_f_val = self.tree[idx].g_val + self.tree[idx].h_val;
                 let cur_f_val = g_val + h_val;
                 if cur_f_val >= prev_f_val {
                     None
                 } else {
-                    self.tree[*idx].g_val = g_val;
-                    self.tree[*idx].h_val = h_val;
-                    self.parent_node[*idx] = parent;
-                    Some(self.tree[*idx])
+                    self.tree[idx].g_val = g_val;
+                    self.tree[idx].h_val = h_val;
+                    self.parent_node[idx] = parent;
+                    Some(self.tree[idx])
                 }
             }
             None => {
