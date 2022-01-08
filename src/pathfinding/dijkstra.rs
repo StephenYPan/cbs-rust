@@ -30,15 +30,15 @@ pub fn compute_heuristics(map: &Vec<Vec<u8>>, start_loc: Vertex) -> HashMap<Vert
             let new_node = Node::new(next_loc, cur_node.g_val + 1);
             let key = new_node.loc;
             match closed_list.get(&key) {
-                Some(_) => {
+                Some(node) => {
                     // The if condition will never be true because the action cost are uniform.
                     // // Update existing node if it is a shorter path.
-                    // if new_node < *node {
-                    //     // Update key, guard against the key possibly not being set
-                    //     let val = closed_list.entry(key).or_insert(new_node);
-                    //     *val = new_node;
-                    //     open_list.push(new_node);
-                    // }
+                    if new_node < *node {
+                        // Update key, guard against the key possibly not being set
+                        let val = closed_list.entry(key).or_insert(new_node);
+                        *val = new_node;
+                        open_list.push(new_node);
+                    }
                 }
                 None => {
                     closed_list.insert(key, new_node);
