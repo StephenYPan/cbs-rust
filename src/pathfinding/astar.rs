@@ -1,7 +1,7 @@
-use crate::datatype::vertex::Vertex;
+use crate::datatype::{edge::Edge, vertex::Vertex};
 use crate::pathfinding::lib::{get_next_loc, is_invalid_loc};
 use std::cmp::Ordering;
-use std::collections::{BinaryHeap, HashMap};
+use std::collections::{BinaryHeap, HashMap, HashSet};
 
 /// Find the shortest path from start to goal such that it satisfies the given constraints.
 pub fn astar(
@@ -9,9 +9,21 @@ pub fn astar(
     start_loc: Vertex,
     goal_loc: Vertex,
     h_values: &HashMap<Vertex, u16>,
+    constraints: Vec<(Edge, u16, bool)>,
 ) -> Option<Vec<Vertex>> {
     let mut open_list: BinaryHeap<Node> = BinaryHeap::new();
     let mut tree = Tree::new();
+
+    let neg_constraints: HashSet<(Edge, u16)> = constraints
+        .iter()
+        .filter(|(_, _, p)| !*p)
+        .map(|&(e, t, _)| (e, t))
+        .collect();
+    let pos_constraints: HashMap<u16, Edge> = constraints
+        .iter()
+        .filter(|(_, _, p)| *p)
+        .map(|&(e, t, _)| (t, e))
+        .collect();
 
     let root_h_val = *h_values.get(&start_loc).unwrap();
     open_list.push(tree.add_node(start_loc, 0, root_h_val, 0, 0).unwrap());
@@ -30,12 +42,19 @@ pub fn astar(
             if is_invalid_loc(&map, next_loc) {
                 continue;
             }
+            let next_t = cur_node.timestep + 1;
+            if is_neg_constraint(cur_node.loc, next_loc, next_t, &neg_constraints) {
+                continue;
+            }
+            if is_pos_constraint(cur_node.loc, next_loc, next_t, &pos_constraints) {
+                continue;
+            }
             // TODO: add constraints
             match tree.add_node(
                 next_loc,
                 cur_node.g_val + 1,
                 *h_values.get(&next_loc).unwrap(),
-                cur_node.timestep + 1,
+                next_t,
                 cur_idx,
             ) {
                 Some(node) => open_list.push(node),
@@ -44,6 +63,30 @@ pub fn astar(
         }
     }
     None
+}
+
+fn is_neg_constraint(
+    cur_loc: Vertex,
+    next_loc: Vertex,
+    next_t: u16,
+    neg_constraints: &HashSet<(Edge, u16)>,
+) -> bool {
+    match neg_constraints.get(&(Edge(cur_loc, next_loc), next_t)) {
+        Some(_) => true,
+        None => false,
+    }
+}
+
+fn is_pos_constraint(
+    cur_loc: Vertex,
+    next_loc: Vertex,
+    next_t: u16,
+    pos_constraints: &HashMap<u16, Edge>,
+) -> bool {
+    match pos_constraints.get(&next_t) {
+        Some(&edge) => edge != Edge(cur_loc, next_loc),
+        None => false,
+    }
 }
 
 /// source: https://dev.to/deciduously/no-more-tears-no-more-knots-arena-allocated-trees-in-rust-44k6
