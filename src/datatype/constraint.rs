@@ -1,6 +1,7 @@
 use crate::datatype::{edge::Edge, vertex::Vertex};
 use std::fmt;
 
+#[derive(Eq, PartialEq, Copy, Clone)]
 pub enum Location {
     Vertex(Vertex),
     Edge(Edge),
@@ -40,7 +41,7 @@ impl fmt::Debug for Location {
     }
 }
 
-#[derive(Eq)]
+#[derive(Eq, Copy, Clone)]
 pub struct Constraint {
     pub agent: u8,
     pub loc: Edge,
@@ -51,10 +52,9 @@ pub struct Constraint {
 
 impl PartialEq for Constraint {
     fn eq(&self, other: &Self) -> bool {
-        self.loc.eq(&other.loc)
-            && self.is_edge & other.is_edge
+        self.is_positive == other.is_positive
             && self.timestep == other.timestep
-            && self.is_positive & other.is_positive
+            && self.loc.eq(&other.loc)
     }
 }
 
