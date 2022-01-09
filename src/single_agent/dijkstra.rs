@@ -4,7 +4,7 @@ use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap};
 
 /// Use Dijkstra to build a shortest path from a location to all other locations
-pub fn compute_heuristics(map: &Vec<Vec<u8>>, start_loc: Vertex) -> HashMap<Vertex, u16> {
+pub fn compute_heuristics(map: &Vec<Vec<u8>>, location: Vertex) -> HashMap<Vertex, u16> {
     let map_size: usize = map
         .iter()
         .flat_map(|v| v.iter())
@@ -13,7 +13,7 @@ pub fn compute_heuristics(map: &Vec<Vec<u8>>, start_loc: Vertex) -> HashMap<Vert
     let mut open_list: BinaryHeap<Node> = BinaryHeap::new();
     let mut closed_list: HashMap<Vertex, Node> = HashMap::with_capacity(map_size);
 
-    let root = Node::new(start_loc, 0);
+    let root = Node::new(location, 0);
     closed_list.insert(root.loc, root);
     open_list.push(root);
 
