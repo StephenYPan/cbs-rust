@@ -44,7 +44,7 @@ impl PartialOrd for Node {
 }
 
 impl Node {
-    fn new(
+    pub fn new(
         g_val: u16,
         h_val: u16,
         paths: Vec<Vec<Vertex>>,
