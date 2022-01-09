@@ -40,12 +40,22 @@ impl fmt::Debug for Location {
     }
 }
 
+#[derive(Eq)]
 pub struct Constraint {
     pub agent: u8,
     pub loc: Edge,
     pub is_edge: bool,
     pub timestep: u16,
     pub is_positive: bool,
+}
+
+impl PartialEq for Constraint {
+    fn eq(&self, other: &Self) -> bool {
+        self.loc.eq(&other.loc)
+            && self.is_edge & other.is_edge
+            && self.timestep == other.timestep
+            && self.is_positive & other.is_positive
+    }
 }
 
 impl Constraint {
