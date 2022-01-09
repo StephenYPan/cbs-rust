@@ -6,8 +6,8 @@ use std::collections::{BinaryHeap, HashMap, HashSet};
 /// Find the shortest path from start to goal such that it satisfies the given constraints.
 pub fn astar(
     map: &Vec<Vec<u8>>,
-    start_loc: Vertex,
-    goal_loc: Vertex,
+    start_loc: &Vertex,
+    goal_loc: &Vertex,
     h_values: &HashMap<Vertex, u16>,
     constraints: &Vec<Constraint>,
 ) -> Option<Vec<Vertex>> {
@@ -26,12 +26,12 @@ pub fn astar(
         .collect();
 
     let root_h_val = *h_values.get(&start_loc).unwrap();
-    open_list.push(tree.add_node(start_loc, 0, root_h_val, 0, 0).unwrap());
+    open_list.push(tree.add_node(*start_loc, 0, root_h_val, 0, 0).unwrap());
 
     while !open_list.is_empty() {
         let cur_node = open_list.pop().unwrap();
         let cur_idx = tree.get_node_idx(cur_node);
-        if cur_node.loc == goal_loc {
+        if cur_node.loc == *goal_loc {
             return Some(tree.get_path(cur_idx));
         }
         for action in 0..5 {
