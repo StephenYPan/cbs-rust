@@ -42,3 +42,21 @@ impl PartialOrd for Node {
         Some(self.cmp(other))
     }
 }
+
+impl Node {
+    fn new(
+        g_val: u16,
+        h_val: u16,
+        paths: Vec<Vec<Vertex>>,
+        constraints: Vec<Constraint>,
+        collisions: Vec<Collision>,
+    ) -> Node {
+        Node {
+            g_val: g_val,
+            h_val: h_val,
+            paths: paths,
+            constraints: constraints,
+            collisions: collisions,
+        }
+    }
+}
