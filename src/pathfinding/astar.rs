@@ -1,4 +1,4 @@
-use crate::datatype::{constraints::Constraints, edge::Edge, vertex::Vertex};
+use crate::datatype::{constraint::Constraint, edge::Edge, vertex::Vertex};
 use crate::pathfinding::lib::{get_next_loc, is_invalid_loc};
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap, HashSet};
@@ -9,7 +9,7 @@ pub fn astar(
     start_loc: Vertex,
     goal_loc: Vertex,
     h_values: &HashMap<Vertex, u16>,
-    constraints: &Constraints,
+    constraints: &Vec<Constraint>,
 ) -> Option<Vec<Vertex>> {
     let mut open_list: BinaryHeap<Node> = BinaryHeap::new();
     let mut tree = Tree::new();
@@ -17,16 +17,16 @@ pub fn astar(
     // let neg_constraints: HashSet<(Edge, bool, u16)> = constraints
     // let pos_constraints: HashMap<(u16, bool), Edge> = constraints
 
-    // let neg_constraints: HashSet<(Edge, bool, u16)> = constraints
-    //     .iter()
-    //     .filter(|c| !c.is_positive)
-    //     .map(|c| (c.loc, c.is_edge, c.timestep))
-    //     .collect();
-    // let pos_constraints: HashMap<(u16, bool), Edge> = constraints
-    //     .iter()
-    //     .filter(|c| c.is_positive)
-    //     .map(|c| ((c.timestep, c.is_edge), c.loc))
-    //     .collect();
+    let neg_constraints: HashSet<(Edge, bool, u16)> = constraints
+        .iter()
+        .filter(|c| !c.is_positive)
+        .map(|c| (c.loc, c.is_edge, c.timestep))
+        .collect();
+    let pos_constraints: HashMap<(u16, bool), Edge> = constraints
+        .iter()
+        .filter(|c| c.is_positive)
+        .map(|c| ((c.timestep, c.is_edge), c.loc))
+        .collect();
 
     let root_h_val = *h_values.get(&start_loc).unwrap();
     open_list.push(tree.add_node(start_loc, 0, root_h_val, 0, 0).unwrap());
@@ -45,8 +45,8 @@ pub fn astar(
             let next_t = cur_node.timestep + 1;
 
             if is_invalid_loc(&map, next_loc)
-            // || is_neg_constraint(cur_node.loc, next_loc, next_t, &neg_constraints)
-            // || is_pos_constraint(cur_node.loc, next_loc, next_t, &pos_constraints)
+                || is_neg_constraint(cur_node.loc, next_loc, next_t, &neg_constraints)
+                || is_pos_constraint(cur_node.loc, next_loc, next_t, &pos_constraints)
             {
                 continue;
             }
