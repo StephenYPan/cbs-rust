@@ -39,17 +39,15 @@ pub fn astar(
                 Some(vertex) => vertex,
                 None => continue,
             };
-            if is_invalid_loc(&map, next_loc) {
-                continue;
-            }
             let next_t = cur_node.timestep + 1;
-            if is_neg_constraint(cur_node.loc, next_loc, next_t, &neg_constraints) {
+
+            if is_invalid_loc(&map, next_loc)
+                || is_neg_constraint(cur_node.loc, next_loc, next_t, &neg_constraints)
+                || is_pos_constraint(cur_node.loc, next_loc, next_t, &pos_constraints)
+            {
                 continue;
             }
-            if is_pos_constraint(cur_node.loc, next_loc, next_t, &pos_constraints) {
-                continue;
-            }
-            // TODO: add constraints
+
             match tree.add_node(
                 next_loc,
                 cur_node.g_val + 1,
@@ -71,7 +69,7 @@ fn is_neg_constraint(
     next_t: u16,
     neg_constraints: &HashSet<(Edge, bool, u16)>,
 ) -> bool {
-    // Checks hashset set for edge then vertex.
+    // Checks hashset for edge then vertex.
     match neg_constraints.get(&(Edge(cur_loc, next_loc), true, next_t)) {
         Some(_) => return true,
         None => {}
@@ -94,7 +92,7 @@ fn is_pos_constraint(
         None => {}
     }
     match pos_constraints.get(&(next_t, false)) {
-        Some(&edge) => edge != Edge(Vertex(0, 0), next_loc),
+        Some(&edge) => edge.1 != next_loc,
         None => false,
     }
 }
