@@ -14,9 +14,6 @@ pub fn astar(
     let mut open_list: BinaryHeap<Node> = BinaryHeap::new();
     let mut tree = Tree::new();
 
-    // let neg_constraints: HashSet<(Edge, bool, u16)> = constraints
-    // let pos_constraints: HashMap<(u16, bool), Edge> = constraints
-
     let neg_constraints: HashSet<(Edge, bool, u16)> = constraints
         .iter()
         .filter(|c| !c.is_positive)
