@@ -41,11 +41,11 @@ impl fmt::Debug for Location {
 }
 
 pub struct Constraint {
-    agent: u8,
-    loc: Edge,
-    is_edge: bool,
-    timestep: u16,
-    is_positive: bool,
+    pub agent: u8,
+    pub loc: Edge,
+    pub is_edge: bool,
+    pub timestep: u16,
+    pub is_positive: bool,
 }
 
 impl Constraint {
