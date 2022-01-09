@@ -63,6 +63,7 @@ pub fn astar(
     None
 }
 
+/// Return true if the action is a negative constraint, otherwise false.
 fn is_neg_constraint(
     cur_loc: Vertex,
     next_loc: Vertex,
@@ -71,15 +72,15 @@ fn is_neg_constraint(
 ) -> bool {
     // Checks hashset for edge then vertex.
     match neg_constraints.get(&(Edge(cur_loc, next_loc), true, next_t)) {
-        Some(_) => return true,
-        None => {}
-    }
-    match neg_constraints.get(&(Edge(Vertex(0, 0), next_loc), false, next_t)) {
         Some(_) => true,
-        None => false,
+        None => match neg_constraints.get(&(Edge(Vertex(0, 0), next_loc), false, next_t)) {
+            Some(_) => true,
+            None => false,
+        },
     }
 }
 
+/// Return true if the action is not a positive constraint, otherwise false.
 fn is_pos_constraint(
     cur_loc: Vertex,
     next_loc: Vertex,
@@ -88,12 +89,11 @@ fn is_pos_constraint(
 ) -> bool {
     // Check hashmap for edge then vertex.
     match pos_constraints.get(&(next_t, true)) {
-        Some(&edge) => return edge != Edge(cur_loc, next_loc),
-        None => {}
-    }
-    match pos_constraints.get(&(next_t, false)) {
-        Some(&edge) => edge.1 != next_loc,
-        None => false,
+        Some(&edge) => edge != Edge(cur_loc, next_loc),
+        None => match pos_constraints.get(&(next_t, false)) {
+            Some(&edge) => edge.1 != next_loc,
+            None => false,
+        },
     }
 }
 
