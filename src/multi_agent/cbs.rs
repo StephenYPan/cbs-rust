@@ -1,9 +1,8 @@
-#![allow(unused)]
 use crate::datatype::{constraint::Constraint, constraint::Location, edge::Edge, vertex::Vertex};
 use crate::multi_agent::{collision::Collision, node::Node};
 use crate::single_agent::{astar::astar, dijkstra::compute_heuristics};
 use std::cmp::max;
-use std::collections::{BinaryHeap, HashMap, HashSet};
+use std::collections::{BinaryHeap, HashMap};
 
 fn get_sum_cost(paths: &Vec<Vec<Vertex>>) -> u16 {
     paths.iter().map(|p| p.len() as u16).sum()
@@ -54,26 +53,123 @@ fn detect_collisions(paths: &Vec<Vec<Vertex>>) -> Vec<Collision> {
     collisions
 }
 
-pub fn cbs(map: &Vec<Vec<u8>>, starts: Vec<Vertex>, goals: Vec<Vertex>) -> Option<Vec<Vertex>> {
+fn standard_split(c: &Collision) -> Vec<Constraint> {
+    match c.loc {
+        Location::Vertex(_) => {
+            vec![
+                Constraint::new(c.a1, c.loc, c.timestep, false),
+                Constraint::new(c.a2, c.loc, c.timestep, false),
+            ]
+        }
+        Location::Edge(e) => {
+            let reverse_edge = Location::new(Edge(e.1, e.0));
+            vec![
+                Constraint::new(c.a1, c.loc, c.timestep, false),
+                Constraint::new(c.a2, reverse_edge, c.timestep, false),
+            ]
+        }
+    }
+}
+
+pub fn cbs(
+    map: &Vec<Vec<u8>>,
+    starts: Vec<Vertex>,
+    goals: Vec<Vertex>,
+) -> Option<Vec<Vec<Vertex>>> {
     let num_agents = starts.len();
     let mut h_values: Vec<HashMap<Vertex, u16>> = Vec::with_capacity(num_agents);
     for i in 0..num_agents {
         h_values.push(compute_heuristics(&map, goals[i]));
     }
 
-    let mut paths: Vec<Vec<Vertex>> = Vec::with_capacity(num_agents);
-    let mut constraints: Vec<Constraint> = Vec::new();
+    let mut root_paths: Vec<Vec<Vertex>> = Vec::with_capacity(num_agents);
+    #[allow(unused_mut)]
+    let mut root_constraints: Vec<Constraint> = Vec::new();
     // TODO: add ability to pass in constraints by adding it to the param
     for i in 0..num_agents {
-        let path = match astar(&map, &starts[i], &goals[i], &h_values[i], &constraints) {
+        let agent_constraints: Vec<Constraint> = root_constraints
+            .clone()
+            .into_iter()
+            .filter(|c| c.agent == i as u8)
+            .collect();
+        let path = match astar(
+            &map,
+            &starts[i],
+            &goals[i],
+            &h_values[i],
+            &agent_constraints,
+        ) {
             Some(path) => path,
             None => return None, // No solution
         };
-        paths.push(path);
+        root_paths.push(path);
     }
-    let g_val = get_sum_cost(&paths);
-    let collisions = detect_collisions(&paths);
-    let root = Node::new(g_val, 0, paths, constraints, collisions);
-    println!("{:?}", root);
+    let root_g_val = get_sum_cost(&root_paths);
+    let root_h_val = 0;
+    let root_collisions = detect_collisions(&root_paths);
+    let root = Node::new(
+        root_g_val,
+        root_h_val,
+        root_paths,
+        root_constraints,
+        root_collisions,
+    );
+
+    let mut open_list: BinaryHeap<Node> = BinaryHeap::new();
+    open_list.push(root);
+
+    while !open_list.is_empty() {
+        let cur_node = open_list.pop().unwrap();
+        if cur_node.collisions.len() == 0 {
+            // Solution found
+            return Some(cur_node.paths);
+        }
+        // TODO: Figure out cardinal collision
+        // TODO: Try collision bypass if non-cardinal
+        let collision = &cur_node.collisions[0];
+        let constraints = standard_split(collision);
+        // TODO: Add one thread for constraint checking.
+        // Store result node in 2 slot vectors
+        // and push them to open_list after thread.join
+        for constraint in constraints {
+            let agent = constraint.agent as usize;
+            let mut new_constraints: Vec<Constraint> = vec![constraint];
+            new_constraints.extend(cur_node.constraints.clone());
+            let agent_constraints: Vec<Constraint> = new_constraints
+                .clone()
+                .into_iter()
+                .filter(|c| c.agent == agent as u8)
+                .collect();
+            let new_path = match astar(
+                &map,
+                &starts[agent],
+                &goals[agent],
+                &h_values[agent],
+                &agent_constraints,
+            ) {
+                Some(p) => p,
+                None => continue, // New constraint yields no solution
+            };
+
+            let mut new_paths = cur_node.paths.clone();
+            new_paths[agent] = new_path;
+
+            let new_collisions = detect_collisions(&new_paths);
+            let new_g_val = get_sum_cost(&new_paths);
+            let new_h_val = 0;
+
+            // Move all the variables inside the node.
+            let new_node = Node::new(
+                new_g_val,
+                new_h_val,
+                new_paths,
+                new_constraints,
+                new_collisions,
+            );
+
+            open_list.push(new_node);
+        }
+    }
+
     None // No solution
 }
