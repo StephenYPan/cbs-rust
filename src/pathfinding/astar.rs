@@ -1,4 +1,4 @@
-use crate::datatype::{edge::Edge, vertex::Vertex};
+use crate::datatype::{constraint::Constraint, edge::Edge, vertex::Vertex};
 use crate::pathfinding::lib::{get_next_loc, is_invalid_loc};
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap, HashSet};
@@ -9,20 +9,20 @@ pub fn astar(
     start_loc: Vertex,
     goal_loc: Vertex,
     h_values: &HashMap<Vertex, u16>,
-    constraints: Vec<(Edge, u16, bool)>,
+    constraints: Vec<Constraint>,
 ) -> Option<Vec<Vertex>> {
     let mut open_list: BinaryHeap<Node> = BinaryHeap::new();
     let mut tree = Tree::new();
 
-    let neg_constraints: HashSet<(Edge, u16)> = constraints
+    let neg_constraints: HashSet<(Edge, bool, u16)> = constraints
         .iter()
-        .filter(|(_, _, p)| !*p)
-        .map(|&(e, t, _)| (e, t))
+        .filter(|c| !c.is_positive)
+        .map(|c| (c.loc, c.is_edge, c.timestep))
         .collect();
-    let pos_constraints: HashMap<u16, Edge> = constraints
+    let pos_constraints: HashMap<(u16, bool), Edge> = constraints
         .iter()
-        .filter(|(_, _, p)| *p)
-        .map(|&(e, t, _)| (t, e))
+        .filter(|c| c.is_positive)
+        .map(|c| ((c.timestep, c.is_edge), c.loc))
         .collect();
 
     let root_h_val = *h_values.get(&start_loc).unwrap();
@@ -69,9 +69,14 @@ fn is_neg_constraint(
     cur_loc: Vertex,
     next_loc: Vertex,
     next_t: u16,
-    neg_constraints: &HashSet<(Edge, u16)>,
+    neg_constraints: &HashSet<(Edge, bool, u16)>,
 ) -> bool {
-    match neg_constraints.get(&(Edge(cur_loc, next_loc), next_t)) {
+    // Checks hashset set for edge then vertex.
+    match neg_constraints.get(&(Edge(cur_loc, next_loc), true, next_t)) {
+        Some(_) => return true,
+        None => {}
+    }
+    match neg_constraints.get(&(Edge(Vertex(0, 0), next_loc), false, next_t)) {
         Some(_) => true,
         None => false,
     }
@@ -81,10 +86,15 @@ fn is_pos_constraint(
     cur_loc: Vertex,
     next_loc: Vertex,
     next_t: u16,
-    pos_constraints: &HashMap<u16, Edge>,
+    pos_constraints: &HashMap<(u16, bool), Edge>,
 ) -> bool {
-    match pos_constraints.get(&next_t) {
-        Some(&edge) => edge != Edge(cur_loc, next_loc),
+    // Check hashmap for edge then vertex.
+    match pos_constraints.get(&(next_t, true)) {
+        Some(&edge) => return edge != Edge(cur_loc, next_loc),
+        None => {}
+    }
+    match pos_constraints.get(&(next_t, false)) {
+        Some(&edge) => edge != Edge(Vertex(0, 0), next_loc),
         None => false,
     }
 }
