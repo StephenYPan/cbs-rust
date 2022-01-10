@@ -54,27 +54,27 @@ fn detect_collisions(paths: &[Vec<Vertex>]) -> Vec<Collision> {
     collisions
 }
 
-fn standard_split(c: &Collision) -> Vec<Constraint> {
-    match c.loc {
+fn standard_split(collision: &Collision) -> Vec<Constraint> {
+    match collision.loc {
         Location::Vertex(_) => {
             vec![
-                Constraint::new(c.a1, c.loc, c.timestep, false),
-                Constraint::new(c.a2, c.loc, c.timestep, false),
+                Constraint::new(collision.a1, collision.loc, collision.timestep, false),
+                Constraint::new(collision.a2, collision.loc, collision.timestep, false),
             ]
         }
-        Location::Edge(e) => {
-            let rev_e = Location::new(Edge(e.1, e.0));
+        Location::Edge(edge) => {
+            let reversed_edge = Location::new(Edge(edge.1, edge.0));
             vec![
-                Constraint::new(c.a1, c.loc, c.timestep, false),
-                Constraint::new(c.a2, rev_e, c.timestep, false),
+                Constraint::new(collision.a1, collision.loc, collision.timestep, false),
+                Constraint::new(collision.a2, reversed_edge, collision.timestep, false),
             ]
         }
     }
 }
 
 #[allow(unused)]
-fn disjoint_split(c: &Collision) -> Vec<Constraint> {
-    let mut result = standard_split(c);
+fn disjoint_split(collision: &Collision) -> Vec<Constraint> {
+    let mut result = standard_split(collision);
     // Pick a random agent.
     let random_idx = (Instant::now().elapsed().as_nanos() % 2) as usize;
     let random_agent = result[random_idx].agent;
