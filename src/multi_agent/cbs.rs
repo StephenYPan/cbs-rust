@@ -72,7 +72,6 @@ fn standard_split(collision: &Collision) -> Vec<Constraint> {
     }
 }
 
-#[allow(unused)]
 fn disjoint_split(collision: &Collision) -> Vec<Constraint> {
     let mut result = standard_split(collision);
     // Pick a random agent.
@@ -87,7 +86,6 @@ fn disjoint_split(collision: &Collision) -> Vec<Constraint> {
     result
 }
 
-#[allow(unused)]
 fn paths_violate_pos_constraint(constraint: &Constraint, paths: &[Vec<Vertex>]) -> Vec<usize> {
     assert!(constraint.is_positive);
     let mut agents = Vec::new();
