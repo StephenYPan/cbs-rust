@@ -76,11 +76,11 @@ fn standard_split(c: &Collision) -> Vec<Constraint> {
 fn disjoint_split(c: &Collision) -> Vec<Constraint> {
     let mut result = standard_split(c);
     let random_idx = (Instant::now().elapsed().as_nanos() % 2) as usize;
-    let agent = result[random_idx].agent;
-    let loc = result[random_idx].loc;
+    let random_agent = result[random_idx].agent;
+    let random_loc = result[random_idx].loc;
     for (i, r) in result.iter_mut().enumerate() {
-        r.agent = agent;
-        r.loc = loc;
+        r.agent = random_agent;
+        r.loc = random_loc;
         r.is_positive = i == random_idx;
     }
     result
