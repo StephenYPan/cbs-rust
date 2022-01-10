@@ -3,6 +3,7 @@ use crate::multi_agent::{collision::Collision, node::Node};
 use crate::single_agent::{astar::astar, dijkstra::compute_heuristics};
 use std::cmp::max;
 use std::collections::{BinaryHeap, HashMap};
+use std::time::Instant;
 
 fn get_sum_cost(paths: &[Vec<Vertex>]) -> u16 {
     paths.iter().map(|p| p.len() as u16).sum()
@@ -71,7 +72,19 @@ fn standard_split(c: &Collision) -> Vec<Constraint> {
     }
 }
 
-// fn disjoint_split(c: &Collision) -> Vec<Constraint> {}
+#[allow(unused)]
+fn disjoint_split(c: &Collision) -> Vec<Constraint> {
+    let mut result = standard_split(c);
+    let random_idx = (Instant::now().elapsed().as_nanos() % 2) as usize;
+    let agent = result[random_idx].agent;
+    let loc = result[random_idx].loc;
+    for (i, r) in result.iter_mut().enumerate() {
+        r.agent = agent;
+        r.loc = loc;
+        r.is_positive = i == random_idx;
+    }
+    result
+}
 
 pub fn cbs(map: &[Vec<u8>], starts: Vec<Vertex>, goals: Vec<Vertex>) -> Option<Vec<Vec<Vertex>>> {
     let num_agents = starts.len();
