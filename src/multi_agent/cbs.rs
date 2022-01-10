@@ -6,7 +6,7 @@ use std::collections::{BinaryHeap, HashMap};
 use std::time::Instant;
 
 fn get_sum_cost(paths: &[Vec<Vertex>]) -> u16 {
-    paths.iter().map(|p| p.len() as u16).sum()
+    paths.iter().map(|p| (p.len() - 1) as u16).sum()
 }
 
 fn get_location(path: &[Vertex], timestep: usize) -> Vertex {
@@ -28,13 +28,13 @@ fn detect_collisions(paths: &[Vec<Vertex>]) -> Vec<Collision> {
                 let cur_loc2 = get_location(&paths[j], t);
                 let prev_loc1 = get_location(&paths[i], t - 1);
                 let prev_loc2 = get_location(&paths[j], t - 1);
-                if prev_loc1 == prev_loc2 {
+                if cur_loc1 == cur_loc2 {
                     // Vertex collision
                     collisions.push(Collision::new(
                         i as u8,
                         j as u8,
-                        Location::new(prev_loc1),
-                        (t - 1) as u16,
+                        Location::new(cur_loc1),
+                        t as u16,
                     ));
                     break;
                 }
@@ -44,7 +44,7 @@ fn detect_collisions(paths: &[Vec<Vertex>]) -> Vec<Collision> {
                         i as u8,
                         j as u8,
                         Location::new(Edge(cur_loc2, cur_loc1)),
-                        (t - 1) as u16,
+                        t as u16,
                     ));
                     break;
                 }
