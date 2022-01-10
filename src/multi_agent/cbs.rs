@@ -62,14 +62,16 @@ fn standard_split(c: &Collision) -> Vec<Constraint> {
             ]
         }
         Location::Edge(e) => {
-            let reverse_edge = Location::new(Edge(e.1, e.0));
+            let rev_e = Location::new(Edge(e.1, e.0));
             vec![
                 Constraint::new(c.a1, c.loc, c.timestep, false),
-                Constraint::new(c.a2, reverse_edge, c.timestep, false),
+                Constraint::new(c.a2, rev_e, c.timestep, false),
             ]
         }
     }
 }
+
+// fn disjoint_split(c: &Collision) -> Vec<Constraint> {}
 
 pub fn cbs(
     map: &Vec<Vec<u8>>,
@@ -88,9 +90,9 @@ pub fn cbs(
     // TODO: add ability to pass in constraints by adding it to the param
     for i in 0..num_agents {
         let agent_constraints: Vec<Constraint> = root_constraints
-            .clone()
-            .into_iter()
+            .iter()
             .filter(|c| c.agent == i as u8)
+            .copied()
             .collect();
         let path = match astar(
             &map,
@@ -136,9 +138,9 @@ pub fn cbs(
             let mut new_constraints: Vec<Constraint> = vec![constraint];
             new_constraints.extend(cur_node.constraints.clone());
             let agent_constraints: Vec<Constraint> = new_constraints
-                .clone()
-                .into_iter()
+                .iter()
                 .filter(|c| c.agent == agent as u8)
+                .copied()
                 .collect();
             let new_path = match astar(
                 &map,
