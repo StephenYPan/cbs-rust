@@ -14,6 +14,7 @@ pub fn astar(
     let mut open_list: BinaryHeap<Node> = BinaryHeap::new();
     let mut tree = Tree::new();
 
+    let earliest_goal_timestep = constraints.iter().fold(0, |acc, c| acc.max(c.timestep));
     let neg_constraints: HashSet<(Edge, bool, u16)> = constraints
         .iter()
         .filter(|c| !c.is_positive)
@@ -31,7 +32,7 @@ pub fn astar(
     while !open_list.is_empty() {
         let cur_node = open_list.pop().unwrap();
         let cur_idx = tree.get_node_idx(cur_node);
-        if cur_node.loc == *goal_loc {
+        if cur_node.timestep >= earliest_goal_timestep && cur_node.loc == *goal_loc {
             return Some(tree.get_path(cur_idx));
         }
         for action in 0..5 {
