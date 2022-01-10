@@ -136,7 +136,7 @@ pub fn cbs(
         for constraint in constraints {
             let agent = constraint.agent as usize;
             let mut new_constraints: Vec<Constraint> = vec![constraint];
-            new_constraints.extend(cur_node.constraints.clone());
+            new_constraints.extend(&cur_node.constraints);
             let agent_constraints: Vec<Constraint> = new_constraints
                 .iter()
                 .filter(|c| c.agent == agent as u8)
