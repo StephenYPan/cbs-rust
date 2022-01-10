@@ -5,11 +5,11 @@ use std::collections::{BinaryHeap, HashMap, HashSet};
 
 /// Find the shortest path from start to goal such that it satisfies the given constraints.
 pub fn astar(
-    map: &Vec<Vec<u8>>,
+    map: &[Vec<u8>],
     start_loc: &Vertex,
     goal_loc: &Vertex,
     h_values: &HashMap<Vertex, u16>,
-    constraints: &Vec<Constraint>,
+    constraints: &[Constraint],
 ) -> Option<Vec<Vertex>> {
     let mut open_list: BinaryHeap<Node> = BinaryHeap::new();
     let mut tree = Tree::new();
@@ -25,7 +25,7 @@ pub fn astar(
         .map(|c| ((c.timestep, c.is_edge), c.loc))
         .collect();
 
-    let root_h_val = *h_values.get(&start_loc).unwrap();
+    let root_h_val = *h_values.get(start_loc).unwrap();
     open_list.push(tree.add_node(*start_loc, 0, root_h_val, 0, 0).unwrap());
 
     while !open_list.is_empty() {
@@ -41,7 +41,7 @@ pub fn astar(
             };
             let next_t = cur_node.timestep + 1;
 
-            if is_invalid_loc(&map, next_loc)
+            if is_invalid_loc(map, next_loc)
                 || is_neg_constraint(cur_node.loc, next_loc, next_t, &neg_constraints)
                 || is_pos_constraint(cur_node.loc, next_loc, next_t, &pos_constraints)
             {
@@ -73,10 +73,9 @@ fn is_neg_constraint(
     // Checks hashset for edge then vertex.
     match neg_constraints.get(&(Edge(cur_loc, next_loc), true, next_t)) {
         Some(_) => true,
-        None => match neg_constraints.get(&(Edge(Vertex(0, 0), next_loc), false, next_t)) {
-            Some(_) => true,
-            None => false,
-        },
+        None => neg_constraints
+            .get(&(Edge(Vertex(0, 0), next_loc), false, next_t))
+            .is_some(),
     }
 }
 
@@ -154,8 +153,7 @@ impl Tree {
     /// Runtime is O(c) where c is the path length.
     fn get_path(&self, goal_idx: usize) -> Vec<Vertex> {
         // Travel backwards from the goal node to the start node.
-        let mut path: Vec<Vertex> = Vec::new();
-        path.push(self.tree[goal_idx].loc);
+        let mut path: Vec<Vertex> = vec![self.tree[goal_idx].loc];
         let mut next_idx = self.parent_node[goal_idx];
         while next_idx != 0 {
             path.push(self.tree[next_idx].loc);
@@ -198,10 +196,10 @@ impl PartialOrd for Node {
 impl Node {
     fn new(loc: Vertex, g_val: u16, h_val: u16, timestep: u16) -> Node {
         Node {
-            loc: loc,
-            g_val: g_val,
-            h_val: h_val,
-            timestep: timestep,
+            loc,
+            g_val,
+            h_val,
+            timestep,
         }
     }
 }

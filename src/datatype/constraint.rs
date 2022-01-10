@@ -68,8 +68,8 @@ impl Constraint {
             agent,
             loc: location.0,
             is_edge: location.1,
-            timestep: timestep,
-            is_positive: is_positive,
+            timestep,
+            is_positive,
         }
     }
 }

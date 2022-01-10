@@ -18,10 +18,10 @@ impl PartialEq for Collision {
 impl Collision {
     pub fn new(a1: u8, a2: u8, loc: Location, timestep: u16) -> Collision {
         Collision {
-            a1: a1,
-            a2: a2,
-            loc: loc,
-            timestep: timestep,
+            a1,
+            a2,
+            loc,
+            timestep,
         }
     }
 }

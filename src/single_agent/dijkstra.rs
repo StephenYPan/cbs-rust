@@ -4,7 +4,7 @@ use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap};
 
 /// Use Dijkstra to build a shortest path from a location to all other locations
-pub fn compute_heuristics(map: &Vec<Vec<u8>>, location: Vertex) -> HashMap<Vertex, u16> {
+pub fn compute_heuristics(map: &[Vec<u8>], location: Vertex) -> HashMap<Vertex, u16> {
     let map_size: usize = map
         .iter()
         .flat_map(|v| v.iter())
@@ -24,7 +24,7 @@ pub fn compute_heuristics(map: &Vec<Vec<u8>>, location: Vertex) -> HashMap<Verte
                 Some(vertex) => vertex,
                 None => continue,
             };
-            if is_invalid_loc(&map, next_loc) {
+            if is_invalid_loc(map, next_loc) {
                 continue;
             }
             let new_node = Node::new(next_loc, cur_node.g_val + 1);
@@ -98,9 +98,6 @@ impl PartialOrd for Node {
 
 impl Node {
     fn new(loc: Vertex, g_val: u16) -> Node {
-        Node {
-            loc: loc,
-            g_val: g_val,
-        }
+        Node { loc, g_val }
     }
 }

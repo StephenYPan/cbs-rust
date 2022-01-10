@@ -4,11 +4,11 @@ use crate::single_agent::{astar::astar, dijkstra::compute_heuristics};
 use std::cmp::max;
 use std::collections::{BinaryHeap, HashMap};
 
-fn get_sum_cost(paths: &Vec<Vec<Vertex>>) -> u16 {
+fn get_sum_cost(paths: &[Vec<Vertex>]) -> u16 {
     paths.iter().map(|p| p.len() as u16).sum()
 }
 
-fn get_location(path: &Vec<Vertex>, timestep: usize) -> Vertex {
+fn get_location(path: &[Vertex], timestep: usize) -> Vertex {
     let path_len = path.len();
     if timestep < path_len {
         path[max(0, timestep)]
@@ -17,7 +17,7 @@ fn get_location(path: &Vec<Vertex>, timestep: usize) -> Vertex {
     }
 }
 
-fn detect_collisions(paths: &Vec<Vec<Vertex>>) -> Vec<Collision> {
+fn detect_collisions(paths: &[Vec<Vertex>]) -> Vec<Collision> {
     let mut collisions = Vec::new();
     let num_agents = paths.len();
     for i in 0..num_agents {
@@ -73,15 +73,11 @@ fn standard_split(c: &Collision) -> Vec<Constraint> {
 
 // fn disjoint_split(c: &Collision) -> Vec<Constraint> {}
 
-pub fn cbs(
-    map: &Vec<Vec<u8>>,
-    starts: Vec<Vertex>,
-    goals: Vec<Vertex>,
-) -> Option<Vec<Vec<Vertex>>> {
+pub fn cbs(map: &[Vec<u8>], starts: Vec<Vertex>, goals: Vec<Vertex>) -> Option<Vec<Vec<Vertex>>> {
     let num_agents = starts.len();
     let mut h_values: Vec<HashMap<Vertex, u16>> = Vec::with_capacity(num_agents);
-    for i in 0..num_agents {
-        h_values.push(compute_heuristics(&map, goals[i]));
+    for g in &goals {
+        h_values.push(compute_heuristics(map, *g));
     }
 
     let mut root_paths: Vec<Vec<Vertex>> = Vec::with_capacity(num_agents);
@@ -94,13 +90,7 @@ pub fn cbs(
             .filter(|c| c.agent == i as u8)
             .copied()
             .collect();
-        let path = match astar(
-            &map,
-            &starts[i],
-            &goals[i],
-            &h_values[i],
-            &agent_constraints,
-        ) {
+        let path = match astar(map, &starts[i], &goals[i], &h_values[i], &agent_constraints) {
             Some(path) => path,
             None => return None, // No solution
         };
@@ -122,7 +112,7 @@ pub fn cbs(
 
     while !open_list.is_empty() {
         let cur_node = open_list.pop().unwrap();
-        if cur_node.collisions.len() == 0 {
+        if cur_node.collisions.is_empty() {
             // Solution found
             return Some(cur_node.paths);
         }
@@ -143,7 +133,7 @@ pub fn cbs(
                 .copied()
                 .collect();
             let new_path = match astar(
-                &map,
+                map,
                 &starts[agent],
                 &goals[agent],
                 &h_values[agent],

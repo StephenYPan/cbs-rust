@@ -21,7 +21,7 @@ pub fn get_next_loc(loc: Vertex, action: usize) -> Option<Vertex> {
     }
 }
 
-pub fn is_invalid_loc(map: &Vec<Vec<u8>>, next_loc: Vertex) -> bool {
+pub fn is_invalid_loc(map: &[Vec<u8>], next_loc: Vertex) -> bool {
     let height = map.len() as u16;
     let width = map[0].len() as u16;
     // Out of bound in vertical or horizontal axis or encounter map obstacle

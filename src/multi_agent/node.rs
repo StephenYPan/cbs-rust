@@ -52,11 +52,11 @@ impl Node {
         collisions: Vec<Collision>,
     ) -> Node {
         Node {
-            g_val: g_val,
-            h_val: h_val,
-            paths: paths,
-            constraints: constraints,
-            collisions: collisions,
+            g_val,
+            h_val,
+            paths,
+            constraints,
+            collisions,
         }
     }
 }
