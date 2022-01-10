@@ -87,6 +87,34 @@ fn disjoint_split(collision: &Collision) -> Vec<Constraint> {
     result
 }
 
+#[allow(unused)]
+fn paths_violate_pos_constraint(constraint: &Constraint, paths: &[Vec<Vertex>]) -> Vec<usize> {
+    assert!(constraint.is_positive);
+    let mut agents = Vec::new();
+    for (agent, path) in paths.iter().enumerate() {
+        if agent as u8 == constraint.agent {
+            continue;
+        }
+        let cur_loc = get_location(path, constraint.timestep as usize);
+        let prev_loc = get_location(path, (constraint.timestep - 1) as usize);
+        if !constraint.is_edge {
+            // Vertex violation
+            if constraint.loc.1 == cur_loc {
+                agents.push(agent);
+            }
+        } else {
+            // Edge violation
+            if constraint.loc.0 == prev_loc
+                || constraint.loc.1 == cur_loc
+                || constraint.loc == Edge(cur_loc, prev_loc)
+            {
+                agents.push(agent);
+            }
+        }
+    }
+    agents
+}
+
 pub fn cbs(map: &[Vec<u8>], starts: Vec<Vertex>, goals: Vec<Vertex>) -> Option<Vec<Vec<Vertex>>> {
     let num_agents = starts.len();
     let mut h_values: Vec<HashMap<Vertex, u16>> = Vec::with_capacity(num_agents);
