@@ -30,11 +30,15 @@ fn main() {
     }
     println!("{:?}", starts);
     println!("{:?}", goals);
+    println!();
+
+    let disjoint = true;
 
     let now = Instant::now();
-    let paths = cbs(&map, starts, goals);
+    let paths = cbs(&map, starts, goals, disjoint);
     let elapsed_time = now.elapsed();
     println!("Search time: {:?}", elapsed_time);
+    println!();
 
     match paths {
         Some(paths) => {

@@ -115,7 +115,12 @@ fn paths_violate_pos_constraint(constraint: &Constraint, paths: &[Vec<Vertex>]) 
     agents
 }
 
-pub fn cbs(map: &[Vec<u8>], starts: Vec<Vertex>, goals: Vec<Vertex>) -> Option<Vec<Vec<Vertex>>> {
+pub fn cbs(
+    map: &[Vec<u8>],
+    starts: Vec<Vertex>,
+    goals: Vec<Vertex>,
+    disjoint: bool,
+) -> Option<Vec<Vec<Vertex>>> {
     let num_agents = starts.len();
     let mut h_values: Vec<HashMap<Vertex, u16>> = Vec::with_capacity(num_agents);
     for g in &goals {
@@ -132,11 +137,10 @@ pub fn cbs(map: &[Vec<u8>], starts: Vec<Vertex>, goals: Vec<Vertex>) -> Option<V
             .filter(|c| c.agent == i as u8)
             .copied()
             .collect();
-        let path = match astar(map, &starts[i], &goals[i], &h_values[i], &agent_constraints) {
-            Some(path) => path,
+        match astar(map, &starts[i], &goals[i], &h_values[i], &agent_constraints) {
+            Some(path) => root_paths.push(path),
             None => return None, // No solution
         };
-        root_paths.push(path);
     }
     let root_g_val = get_sum_cost(&root_paths);
     let root_h_val = 0;
@@ -152,41 +156,92 @@ pub fn cbs(map: &[Vec<u8>], starts: Vec<Vertex>, goals: Vec<Vertex>) -> Option<V
     let mut open_list: BinaryHeap<Node> = BinaryHeap::new();
     open_list.push(root);
 
+    let mut pop_counter = 0;
+    let mut push_counter = 0;
+
     while !open_list.is_empty() {
         let cur_node = open_list.pop().unwrap();
+        pop_counter += 1;
         if cur_node.collisions.is_empty() {
             // Solution found
+            println!("# node explored: {}", pop_counter);
+            println!("# node expanded: {}", push_counter);
             return Some(cur_node.paths);
         }
         // TODO: Figure out cardinal collision
         // TODO: Try collision bypass if non-cardinal
         let collision = &cur_node.collisions[0];
-        let constraints = standard_split(collision);
+        let constraints = if disjoint {
+            disjoint_split(collision)
+        } else {
+            standard_split(collision)
+        };
         // TODO: Add one thread for constraint checking.
         // Store result node in 2 slot vectors
         // and push them to open_list after thread.join
         for constraint in constraints {
-            let agent = constraint.agent as usize;
+            let constraint_agent = constraint.agent as usize;
             let mut new_constraints: Vec<Constraint> = vec![constraint];
             new_constraints.extend(&cur_node.constraints);
             let agent_constraints: Vec<Constraint> = new_constraints
                 .iter()
-                .filter(|c| c.agent == agent as u8)
+                .filter(|c| c.agent == constraint_agent as u8)
                 .copied()
                 .collect();
-            let new_path = match astar(
+            let mut new_paths = cur_node.paths.clone();
+            match astar(
                 map,
-                &starts[agent],
-                &goals[agent],
-                &h_values[agent],
+                &starts[constraint_agent],
+                &goals[constraint_agent],
+                &h_values[constraint_agent],
                 &agent_constraints,
             ) {
-                Some(p) => p,
+                Some(p) => new_paths[constraint_agent] = p,
                 None => continue, // New constraint yields no solution
             };
 
-            let mut new_paths = cur_node.paths.clone();
-            new_paths[agent] = new_path;
+            // Check for positive constraint
+            let mut invalid_constraint = false;
+            if constraint.is_positive {
+                let violating_agents = paths_violate_pos_constraint(&constraint, &new_paths);
+                let loc: Location = if !constraint.is_edge {
+                    Location::new(constraint.loc.1)
+                } else {
+                    Location::new(Edge(constraint.loc.1, constraint.loc.0))
+                };
+                for violating_agent in violating_agents {
+                    new_constraints.push(Constraint::new(
+                        violating_agent as u8,
+                        loc,
+                        constraint.timestep,
+                        false,
+                    ));
+                    let violating_agent_constraints: Vec<Constraint> = new_constraints
+                        .iter()
+                        .filter(|c| c.agent == violating_agent as u8)
+                        .copied()
+                        .collect();
+                    match astar(
+                        map,
+                        &starts[violating_agent],
+                        &goals[violating_agent],
+                        &h_values[violating_agent],
+                        &violating_agent_constraints,
+                    ) {
+                        Some(p) => {
+                            new_paths[violating_agent] = p;
+                        }
+                        None => {
+                            invalid_constraint = true;
+                            break;
+                        }
+                    };
+                }
+            }
+            if invalid_constraint {
+                // Positive constraint yields no solution
+                continue;
+            }
 
             let new_collisions = detect_collisions(&new_paths);
             let new_g_val = get_sum_cost(&new_paths);
@@ -202,6 +257,7 @@ pub fn cbs(map: &[Vec<u8>], starts: Vec<Vertex>, goals: Vec<Vertex>) -> Option<V
             );
 
             open_list.push(new_node);
+            push_counter += 1;
         }
     }
 
