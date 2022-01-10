@@ -101,7 +101,7 @@ fn is_pos_constraint(
 struct Tree {
     tree: Vec<Node>,
     parent_node: Vec<usize>,
-    visited_node: HashMap<(Vertex, u16), usize>,
+    duplicate_node: HashMap<(Vertex, u16), usize>,
 }
 
 impl Tree {
@@ -109,7 +109,7 @@ impl Tree {
         Tree {
             tree: Vec::new(),
             parent_node: Vec::new(),
-            visited_node: HashMap::new(),
+            duplicate_node: HashMap::new(),
         }
     }
 
@@ -123,7 +123,7 @@ impl Tree {
         timestep: u16,
         parent: usize,
     ) -> Option<Node> {
-        match self.visited_node.get(&(loc, timestep)) {
+        match self.duplicate_node.get(&(loc, timestep)) {
             Some(&idx) => {
                 let prev_f_val = self.tree[idx].g_val + self.tree[idx].h_val;
                 let cur_f_val = g_val + h_val;
@@ -141,14 +141,14 @@ impl Tree {
                 let node_idx = self.tree.len();
                 self.tree.push(node);
                 self.parent_node.push(parent);
-                self.visited_node.insert((loc, timestep), node_idx);
+                self.duplicate_node.insert((loc, timestep), node_idx);
                 Some(node)
             }
         }
     }
 
     fn get_node_idx(&self, node: Node) -> usize {
-        *self.visited_node.get(&(node.loc, node.timestep)).unwrap()
+        *self.duplicate_node.get(&(node.loc, node.timestep)).unwrap()
     }
 
     /// Runtime is O(c) where c is the path length.
