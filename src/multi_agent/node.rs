@@ -9,7 +9,6 @@ pub struct Node {
     pub paths: Vec<Vec<Vertex>>,
     pub constraints: Vec<Constraint>,
     pub collisions: Vec<Collision>,
-    // pub mdds: Vec<MDD>,
 }
 
 impl PartialEq for Node {
