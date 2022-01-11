@@ -201,7 +201,6 @@ pub fn cbs(
             };
 
             // Check for positive constraint
-            let mut invalid_pos_constraint = false;
             if constraint.is_positive {
                 let violating_agents = paths_violate_pos_constraint(&constraint, &new_paths);
                 let loc: Location = if !constraint.is_edge {
@@ -209,6 +208,7 @@ pub fn cbs(
                 } else {
                     Location::new(Edge(constraint.loc.1, constraint.loc.0))
                 };
+                let mut invalid_pos_constraint = false;
                 for violating_agent in violating_agents {
                     new_constraints.push(Constraint::new(
                         violating_agent as u8,
@@ -237,10 +237,10 @@ pub fn cbs(
                         }
                     };
                 }
-            }
-            if invalid_pos_constraint {
-                // Positive constraint yields no solution
-                continue;
+                if invalid_pos_constraint {
+                    // Positive constraint yields no solution
+                    continue;
+                }
             }
 
             let new_collisions = detect_collisions(&new_paths);
