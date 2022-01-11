@@ -164,6 +164,7 @@ impl Tree {
             next_idx = self.parent_node[next_idx];
         }
         path.push(self.tree[next_idx].loc); // Add start location
+        path.shrink_to_fit();
         path.reverse();
         path
     }
