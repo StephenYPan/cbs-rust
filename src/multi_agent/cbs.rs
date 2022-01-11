@@ -159,11 +159,12 @@ pub fn cbs(
         root_collisions,
     );
 
-    let mut open_list: BinaryHeap<Node> = BinaryHeap::new();
-    open_list.push(root);
-
     let mut pop_counter = 0;
     let mut push_counter = 0;
+
+    let mut open_list: BinaryHeap<Node> = BinaryHeap::new();
+    open_list.push(root);
+    push_counter += 1;
 
     while !open_list.is_empty() {
         let cur_node = open_list.pop().unwrap();
