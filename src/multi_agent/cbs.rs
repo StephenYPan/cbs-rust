@@ -87,7 +87,7 @@ fn disjoint_split(collision: &Collision) -> Vec<Constraint> {
     result
 }
 
-fn paths_violate_pos_constraint(constraint: &Constraint, paths: &[Vec<Vertex>]) -> Vec<usize> {
+fn paths_violating_pos_constraint(constraint: &Constraint, paths: &[Vec<Vertex>]) -> Vec<usize> {
     assert!(constraint.is_positive);
     let mut agents = Vec::with_capacity(paths.len());
     for (agent, path) in paths.iter().enumerate() {
@@ -118,6 +118,7 @@ pub fn cbs(
     map: &[Vec<u8>],
     starts: Vec<Vertex>,
     goals: Vec<Vertex>,
+    constraints: Option<Vec<Constraint>>,
     disjoint: bool,
 ) -> Option<Vec<Vec<Vertex>>> {
     let num_agents = starts.len();
@@ -127,24 +128,29 @@ pub fn cbs(
     }
 
     let mut root_paths: Vec<Vec<Vertex>> = Vec::with_capacity(num_agents);
-    #[allow(unused_mut)]
-    let mut root_constraints: Vec<Constraint> = Vec::new();
-    // TODO: add ability to pass in constraints by adding it to the param
     for i in 0..num_agents {
-        let agent_constraints: Vec<Constraint> = root_constraints
-            .iter()
-            .filter(|c| c.agent == i as u8)
-            .copied()
-            .collect();
+        let agent_constraints: Vec<Constraint> = match &constraints {
+            Some(some_constraints) => some_constraints
+                .iter() // parallelize iter
+                .filter(|c| c.agent == i as u8)
+                .copied()
+                .collect(),
+            None => Vec::new(),
+        };
         match astar(map, &starts[i], &goals[i], &h_values[i], &agent_constraints) {
             Some(path) => root_paths.push(path),
             None => return None, // No solution
         };
     }
+    let root_constraints: Vec<Constraint> = match constraints {
+        Some(constraints) => constraints,
+        None => Vec::new(),
+    };
     let root_collisions = detect_collisions(&root_paths);
     let root_g_val = get_sum_cost(&root_paths);
     let root_h_val = 0;
 
+    // Move all the variables inside the node.
     let root = Node::new(
         root_g_val,
         root_h_val,
@@ -170,21 +176,21 @@ pub fn cbs(
         }
         // TODO: Figure out cardinal collision
         // TODO: Try collision bypass if non-cardinal
-        let collision = &cur_node.collisions[0];
-        let constraints = if disjoint {
-            disjoint_split(collision)
+        let cur_collision = &cur_node.collisions[0];
+        let new_constraints = if disjoint {
+            disjoint_split(cur_collision)
         } else {
-            standard_split(collision)
+            standard_split(cur_collision)
         };
         // TODO: Add one thread for constraint checking.
         // Store result node in 2 slot vectors
         // and push them to open_list after thread.join
-        for constraint in constraints {
-            let constraint_agent = constraint.agent as usize;
-            let mut new_constraints: Vec<Constraint> = vec![constraint];
+        for new_constraint in new_constraints {
+            let constraint_agent = new_constraint.agent as usize;
+            let mut new_constraints: Vec<Constraint> = vec![new_constraint];
             new_constraints.extend(&cur_node.constraints);
             let agent_constraints: Vec<Constraint> = new_constraints
-                .iter()
+                .iter() // parallelize iter
                 .filter(|c| c.agent == constraint_agent as u8)
                 .copied()
                 .collect();
@@ -201,23 +207,23 @@ pub fn cbs(
             };
 
             // Check for positive constraint
-            if constraint.is_positive {
-                let violating_agents = paths_violate_pos_constraint(&constraint, &new_paths);
-                let loc: Location = if !constraint.is_edge {
-                    Location::new(constraint.loc.1)
+            if new_constraint.is_positive {
+                let violating_agents = paths_violating_pos_constraint(&new_constraint, &new_paths);
+                let loc: Location = if !new_constraint.is_edge {
+                    Location::new(new_constraint.loc.1)
                 } else {
-                    Location::new(Edge(constraint.loc.1, constraint.loc.0))
+                    Location::new(Edge(new_constraint.loc.1, new_constraint.loc.0))
                 };
                 let mut invalid_pos_constraint = false;
                 for violating_agent in violating_agents {
                     new_constraints.push(Constraint::new(
                         violating_agent as u8,
                         loc,
-                        constraint.timestep,
+                        new_constraint.timestep,
                         false,
                     ));
                     let violating_agent_constraints: Vec<Constraint> = new_constraints
-                        .iter()
+                        .iter() // parallelize iter
                         .filter(|c| c.agent == violating_agent as u8)
                         .copied()
                         .collect();
