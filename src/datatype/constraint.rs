@@ -1,5 +1,6 @@
 use crate::datatype::{edge::Edge, vertex::Vertex};
 use std::fmt;
+use std::hash::{Hash, Hasher};
 
 #[derive(Eq, PartialEq, Copy, Clone)]
 pub enum Location {
@@ -54,7 +55,17 @@ impl PartialEq for Constraint {
     fn eq(&self, other: &Self) -> bool {
         self.is_positive == other.is_positive
             && self.timestep == other.timestep
+            && self.is_edge == other.is_edge
             && self.loc.eq(&other.loc)
+    }
+}
+
+impl Hash for Constraint {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.loc.hash(state);
+        self.is_edge.hash(state);
+        self.timestep.hash(state);
+        self.is_positive.hash(state);
     }
 }
 
