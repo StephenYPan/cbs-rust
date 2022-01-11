@@ -51,6 +51,7 @@ fn detect_collisions(paths: &[Vec<Vertex>]) -> Vec<Collision> {
             }
         }
     }
+    collisions.shrink_to_fit();
     collisions
 }
 
@@ -88,7 +89,7 @@ fn disjoint_split(collision: &Collision) -> Vec<Constraint> {
 
 fn paths_violate_pos_constraint(constraint: &Constraint, paths: &[Vec<Vertex>]) -> Vec<usize> {
     assert!(constraint.is_positive);
-    let mut agents = Vec::new();
+    let mut agents = Vec::with_capacity(paths.len());
     for (agent, path) in paths.iter().enumerate() {
         if agent as u8 == constraint.agent {
             continue;
@@ -140,9 +141,10 @@ pub fn cbs(
             None => return None, // No solution
         };
     }
+    let root_collisions = detect_collisions(&root_paths);
     let root_g_val = get_sum_cost(&root_paths);
     let root_h_val = 0;
-    let root_collisions = detect_collisions(&root_paths);
+
     let root = Node::new(
         root_g_val,
         root_h_val,
@@ -162,8 +164,8 @@ pub fn cbs(
         pop_counter += 1;
         if cur_node.collisions.is_empty() {
             // Solution found
-            println!("# node explored: {}", pop_counter);
-            println!("# node expanded: {}", push_counter);
+            println!("# nodes explored: {}", pop_counter);
+            println!("# nodes expanded: {}", push_counter);
             return Some(cur_node.paths);
         }
         // TODO: Figure out cardinal collision
@@ -199,7 +201,7 @@ pub fn cbs(
             };
 
             // Check for positive constraint
-            let mut invalid_constraint = false;
+            let mut invalid_pos_constraint = false;
             if constraint.is_positive {
                 let violating_agents = paths_violate_pos_constraint(&constraint, &new_paths);
                 let loc: Location = if !constraint.is_edge {
@@ -230,13 +232,13 @@ pub fn cbs(
                             new_paths[violating_agent] = p;
                         }
                         None => {
-                            invalid_constraint = true;
+                            invalid_pos_constraint = true;
                             break;
                         }
                     };
                 }
             }
-            if invalid_constraint {
+            if invalid_pos_constraint {
                 // Positive constraint yields no solution
                 continue;
             }
@@ -258,6 +260,5 @@ pub fn cbs(
             push_counter += 1;
         }
     }
-
     None // No solution
 }
