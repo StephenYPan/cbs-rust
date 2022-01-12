@@ -1,5 +1,7 @@
 #![allow(unused)]
-use crate::datatype::{constraint::Constraint, edge::Edge, vertex::Vertex};
+use crate::datatype::{
+    collision::Collision, constraint::Constraint, constraint::Location, edge::Edge, vertex::Vertex,
+};
 use crate::single_agent::{dijkstra::compute_heuristics, dijkstra::get_next_loc};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
@@ -24,6 +26,18 @@ impl Mdd {
         // assert the mdd contains the path edges
         Mdd { mdd }
     }
+
+    pub fn find_cardinal_conflict(&self, other: &Self) -> Option<Collision> {
+        None
+    }
+
+    pub fn find_dependency_conflict(&self, other: &Self) -> Option<Collision> {
+        None
+    }
+
+    fn find_extended_mdd_conflict(&self, other: &Self) -> Option<Collision> {
+        None
+    }
 }
 
 #[cached(
@@ -41,12 +55,12 @@ fn build_mdd(
     let mut mdd = Vec::with_capacity(path.len() - 1);
     // return value of build_partial_mdd extended by mdd to maintain order of edges.
     // mdd.extend(partial_mdd); // partial_mdd is moved and cannot be referenced again.
+    // separate into positive and negative constraints
+    // use positive to generate partial mdd
+    // use negative to filter the mdd
+
     mdd.shrink_to_fit();
     mdd
-}
-
-fn reduce_mdd_by_constraints(mdd: &mut [Vec<Edge>], constraints: &[Constraint]) {
-    // reduce the mdd by negative constraints
 }
 
 #[cached(
