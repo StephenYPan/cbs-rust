@@ -1,5 +1,5 @@
 use crate::datatype::vertex::Vertex;
-use crate::single_agent::lib::{get_next_loc, is_invalid_loc};
+use crate::single_agent::lib;
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap};
 
@@ -7,6 +7,17 @@ use cached::proc_macro::cached;
 use cached::SizedCache;
 
 const CACHE_SIZE: usize = 25;
+
+pub fn get_next_loc(map: &[Vec<u8>], cur_loc: Vertex, action: usize) -> Option<Vertex> {
+    let next_loc = match lib::get_next_loc(cur_loc, action) {
+        Some(vertex) => vertex,
+        None => return None,
+    };
+    if lib::is_invalid_loc(map, next_loc) {
+        return None;
+    }
+    Some(next_loc)
+}
 
 /// Use Dijkstra to build a shortest path from a location to all other locations
 #[cached(
@@ -31,13 +42,10 @@ pub fn compute_heuristics(map: &[Vec<u8>], location: Vertex) -> HashMap<Vertex, 
     while !open_list.is_empty() {
         let cur_node = open_list.pop().unwrap();
         for action in 0..4 {
-            let next_loc = match get_next_loc(cur_node.loc, action) {
+            let next_loc = match get_next_loc(map, cur_node.loc, action) {
                 Some(vertex) => vertex,
                 None => continue,
             };
-            if is_invalid_loc(map, next_loc) {
-                continue;
-            }
             let new_node = Node::new(next_loc, cur_node.g_val + 1);
             let key = new_node.loc;
             match closed_list.get(&key) {

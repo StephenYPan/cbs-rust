@@ -1,7 +1,40 @@
 use crate::datatype::{constraint::Constraint, edge::Edge, vertex::Vertex};
-use crate::single_agent::lib::{get_next_loc, is_invalid_loc};
+use crate::single_agent::dijkstra::get_next_loc;
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap, HashSet};
+
+/// Return true if the action is a negative constraint, otherwise false.
+fn is_neg_constraint(
+    cur_loc: Vertex,
+    next_loc: Vertex,
+    next_t: u16,
+    neg_constraints: &HashSet<(Edge, bool, u16)>,
+) -> bool {
+    // Checks hashset for edge then vertex.
+    match neg_constraints.get(&(Edge(cur_loc, next_loc), true, next_t)) {
+        Some(_) => true,
+        None => neg_constraints
+            .get(&(Edge(Vertex(0, 0), next_loc), false, next_t))
+            .is_some(),
+    }
+}
+
+/// Return true if the action is not a positive constraint, otherwise false.
+fn is_pos_constraint(
+    cur_loc: Vertex,
+    next_loc: Vertex,
+    next_t: u16,
+    pos_constraints: &HashMap<(u16, bool), Edge>,
+) -> bool {
+    // Check hashmap for edge then vertex.
+    match pos_constraints.get(&(next_t, true)) {
+        Some(&edge) => edge != Edge(cur_loc, next_loc),
+        None => match pos_constraints.get(&(next_t, false)) {
+            Some(&edge) => edge.1 != next_loc,
+            None => false,
+        },
+    }
+}
 
 /// Find the shortest path from start to goal such that it satisfies the given constraints.
 pub fn astar(
@@ -39,14 +72,12 @@ pub fn astar(
             return Some(tree.get_path(cur_idx));
         }
         for action in 0..5 {
-            let next_loc = match get_next_loc(cur_node.loc, action) {
+            let next_loc = match get_next_loc(map, cur_node.loc, action) {
                 Some(vertex) => vertex,
                 None => continue,
             };
             let next_t = cur_node.timestep + 1;
-
-            if is_invalid_loc(map, next_loc)
-                || is_neg_constraint(cur_node.loc, next_loc, next_t, &neg_constraints)
+            if is_neg_constraint(cur_node.loc, next_loc, next_t, &neg_constraints)
                 || is_pos_constraint(cur_node.loc, next_loc, next_t, &pos_constraints)
             {
                 continue;
@@ -65,39 +96,6 @@ pub fn astar(
         }
     }
     None
-}
-
-/// Return true if the action is a negative constraint, otherwise false.
-fn is_neg_constraint(
-    cur_loc: Vertex,
-    next_loc: Vertex,
-    next_t: u16,
-    neg_constraints: &HashSet<(Edge, bool, u16)>,
-) -> bool {
-    // Checks hashset for edge then vertex.
-    match neg_constraints.get(&(Edge(cur_loc, next_loc), true, next_t)) {
-        Some(_) => true,
-        None => neg_constraints
-            .get(&(Edge(Vertex(0, 0), next_loc), false, next_t))
-            .is_some(),
-    }
-}
-
-/// Return true if the action is not a positive constraint, otherwise false.
-fn is_pos_constraint(
-    cur_loc: Vertex,
-    next_loc: Vertex,
-    next_t: u16,
-    pos_constraints: &HashMap<(u16, bool), Edge>,
-) -> bool {
-    // Check hashmap for edge then vertex.
-    match pos_constraints.get(&(next_t, true)) {
-        Some(&edge) => edge != Edge(cur_loc, next_loc),
-        None => match pos_constraints.get(&(next_t, false)) {
-            Some(&edge) => edge.1 != next_loc,
-            None => false,
-        },
-    }
 }
 
 /// source: https://dev.to/deciduously/no-more-tears-no-more-knots-arena-allocated-trees-in-rust-44k6
