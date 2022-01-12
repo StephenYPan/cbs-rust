@@ -14,10 +14,11 @@ pub struct Node {
 impl PartialEq for Node {
     fn eq(&self, other: &Self) -> bool {
         if self.g_val.eq(&other.g_val) {
-            let paths: Vec<&Vertex> = self.paths.iter().flat_map(|v| v.iter()).clone().collect();
-            let other_paths: Vec<&Vertex> = other.paths.iter().flat_map(|v| v.iter()).collect();
+            let paths: Vec<Vertex> = self.paths.iter().flat_map(|v| v.iter()).copied().collect();
+            let other_paths: Vec<Vertex> =
+                other.paths.iter().flat_map(|v| v.iter()).copied().collect();
             for (v1, v2) in paths.iter().zip(other_paths.iter()) {
-                if v1 != v2 {
+                if *v1 != *v2 {
                     return false;
                 }
             }
