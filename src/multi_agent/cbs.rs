@@ -1,5 +1,6 @@
 use crate::datatype::{
-    collision::Collision, constraint::Constraint, constraint::Location, edge::Edge, vertex::Vertex,
+    collision::Collision, constraint::Constraint, constraint::Location, edge::Edge, mdd::Mdd,
+    vertex::Vertex,
 };
 use crate::single_agent::{astar::astar, dijkstra::compute_heuristics};
 use std::cmp::max;
