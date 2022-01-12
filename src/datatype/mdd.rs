@@ -64,9 +64,9 @@ fn build_mdd(
 }
 
 #[cached(
-    type = "SizedCache<(Vertex, Vertex), Vec<Vec<Edge>>>",
+    type = "SizedCache<(Vertex, Vertex, u16), Vec<Vec<Edge>>>",
     create = "{ SizedCache::with_size(PARTIAL_MDD_CACHE_SIZE) }",
-    convert = "{ (start, goal) }",
+    convert = "{ (start, goal, max_cost) }",
     sync_writes = true
 )]
 fn build_partial_mdd(
