@@ -126,6 +126,8 @@ pub fn cbs(
     constraints: Option<Vec<Constraint>>,
     disjoint: bool,
 ) -> Option<Vec<Vec<Vertex>>> {
+    let now = Instant::now();
+
     let num_agents = starts.len();
     let mut h_values: Vec<HashMap<Vertex, u16>> = Vec::with_capacity(num_agents);
     for g in &goals {
@@ -176,8 +178,11 @@ pub fn cbs(
         pop_counter += 1;
         if cur_node.collisions.is_empty() {
             // Solution found
-            println!("# nodes explored: {}", pop_counter);
-            println!("# nodes expanded: {}", push_counter);
+            let elapsed_time = now.elapsed();
+            println!("CPU time: {:?}", elapsed_time);
+            println!("Cost: {}", cur_node.g_val);
+            println!("Nodes expanded:  {}", pop_counter);
+            println!("Nodes generated: {}", push_counter);
             return Some(cur_node.paths);
         }
         // TODO: Figure out cardinal collision
