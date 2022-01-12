@@ -3,7 +3,18 @@ use crate::single_agent::lib::{get_next_loc, is_invalid_loc};
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap};
 
+use cached::proc_macro::cached;
+use cached::SizedCache;
+
+const CACHE_SIZE: usize = 25;
+
 /// Use Dijkstra to build a shortest path from a location to all other locations
+#[cached(
+    type = "SizedCache<Vertex, HashMap<Vertex, u16>>",
+    create = "{ SizedCache::with_size(CACHE_SIZE) }",
+    convert = "{ location }",
+    sync_writes = true
+)]
 pub fn compute_heuristics(map: &[Vec<u8>], location: Vertex) -> HashMap<Vertex, u16> {
     let map_size: usize = map
         .iter()

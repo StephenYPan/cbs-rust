@@ -5,6 +5,8 @@ use std::cmp::max;
 use std::collections::{BinaryHeap, HashMap};
 use std::time::Instant;
 
+// use rayon::prelude::*;
+
 fn get_sum_cost(paths: &[Vec<Vertex>]) -> u16 {
     paths.iter().map(|p| (p.len() - 1) as u16).sum()
 }
