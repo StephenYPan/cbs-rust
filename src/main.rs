@@ -1,5 +1,5 @@
 mod datatype;
-mod file_reader;
+mod map_reader;
 mod multi_agent;
 mod single_agent;
 
@@ -23,7 +23,7 @@ struct Args {
 fn main() {
     let args = Args::parse();
 
-    let map_instance = file_reader::map::import_map_instance(&args.file).unwrap();
+    let map_instance = map_reader::map::import_map_instance(&args.file).unwrap();
     let map = map_instance.map;
     let starts = map_instance.starts;
     let goals = map_instance.goals;
