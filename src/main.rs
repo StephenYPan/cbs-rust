@@ -9,7 +9,23 @@ use std::mem::size_of_val;
 #[allow(unused)]
 use std::time::Instant;
 
+use clap::Parser;
+
+#[derive(Parser)]
+#[clap(author, version, about, long_about = None)]
+struct Args {
+    /// Path to map file
+    #[clap(short, long, multiple_values = true)]
+    file: Vec<String>,
+
+    /// Turn on disjoint split
+    #[clap(short, long)]
+    disjoint: bool,
+}
+
 fn main() {
+    let args = Args::parse();
+    println!("{:?}", args.file);
     // // . . . @
     // // . . . @
     // // . . . .
@@ -83,7 +99,7 @@ fn main() {
     // println!("{:?}", goals);
     // println!();
 
-    let disjoint = true;
+    let disjoint = args.disjoint;
 
     // let now = Instant::now();
     let paths = cbs(&map, starts, goals, None, disjoint);
