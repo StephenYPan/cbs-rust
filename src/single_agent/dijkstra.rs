@@ -1,6 +1,5 @@
-use crate::datatype::vertex::Vertex;
+use crate::datatype::vertex;
 use crate::single_agent::lib;
-use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap};
 
 use cached::proc_macro::cached;
@@ -8,7 +7,11 @@ use cached::SizedCache;
 
 const CACHE_SIZE: usize = 25;
 
-pub fn get_next_loc(map: &[Vec<u8>], cur_loc: Vertex, action: usize) -> Option<Vertex> {
+pub fn get_next_loc(
+    map: &[Vec<u8>],
+    cur_loc: vertex::Vertex,
+    action: usize,
+) -> Option<vertex::Vertex> {
     let next_loc = match lib::get_next_loc(cur_loc, action) {
         Some(vertex) => vertex,
         None => return None,
@@ -21,19 +24,22 @@ pub fn get_next_loc(map: &[Vec<u8>], cur_loc: Vertex, action: usize) -> Option<V
 
 /// Use Dijkstra to build a shortest path from a location to all other locations
 #[cached(
-    type = "SizedCache<Vertex, HashMap<Vertex, u16>>",
+    type = "SizedCache<vertex::Vertex, HashMap<vertex::Vertex, u16>>",
     create = "{ SizedCache::with_size(CACHE_SIZE) }",
     convert = "{ location }",
     sync_writes = true
 )]
-pub fn compute_heuristics(map: &[Vec<u8>], location: Vertex) -> HashMap<Vertex, u16> {
+pub fn compute_heuristics(
+    map: &[Vec<u8>],
+    location: vertex::Vertex,
+) -> HashMap<vertex::Vertex, u16> {
     let map_size: usize = map
         .iter()
         .flat_map(|v| v.iter())
         .filter(|&x| *x == 1)
         .count();
     let mut open_list: BinaryHeap<Node> = BinaryHeap::new();
-    let mut closed_list: HashMap<Vertex, Node> = HashMap::with_capacity(map_size);
+    let mut closed_list: HashMap<vertex::Vertex, Node> = HashMap::with_capacity(map_size);
 
     let root = Node::new(location, 0);
     closed_list.insert(root.loc, root);
@@ -68,16 +74,18 @@ pub fn compute_heuristics(map: &[Vec<u8>], location: Vertex) -> HashMap<Vertex, 
     }
     // Build the heuristic table starting from start_loc.
     // Capacity is exactly the length of closed_list.
-    let mut h_values: HashMap<Vertex, u16> = HashMap::with_capacity(closed_list.len());
+    let mut h_values: HashMap<vertex::Vertex, u16> = HashMap::with_capacity(closed_list.len());
     for (vertex, node) in closed_list {
         h_values.insert(vertex, node.g_val);
     }
     h_values
 }
 
+use std::cmp::Ordering;
+
 #[derive(Debug, Eq, Copy, Clone)]
 struct Node {
-    loc: Vertex,
+    loc: vertex::Vertex,
     g_val: u16,
 }
 
@@ -116,7 +124,7 @@ impl PartialOrd for Node {
 }
 
 impl Node {
-    fn new(loc: Vertex, g_val: u16) -> Node {
+    fn new(loc: vertex::Vertex, g_val: u16) -> Node {
         Node { loc, g_val }
     }
 }

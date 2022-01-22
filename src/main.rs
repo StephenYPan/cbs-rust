@@ -3,7 +3,7 @@ mod map_reader;
 mod multi_agent;
 mod single_agent;
 
-use multi_agent::cbs::cbs;
+use multi_agent::cbs;
 
 use clap::Parser;
 
@@ -35,7 +35,7 @@ fn main() {
     // println!("{:?}", goals);
     // println!();
 
-    let paths = cbs(&map, starts, goals, None, args.disjoint);
+    let paths = cbs::cbs(&map, starts, goals, None, args.disjoint);
     match paths {
         Some(_paths) => {}
         None => println!("No solution."),

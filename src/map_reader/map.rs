@@ -1,9 +1,9 @@
-use crate::datatype::map_instance::MapInstance;
-use crate::datatype::vertex::Vertex;
+use crate::datatype::map_instance;
+use crate::datatype::vertex;
 use std::fs::File;
 use std::io::{self, BufRead};
 
-pub fn import_map_instance(filename: &str) -> Result<MapInstance, std::io::Error> {
+pub fn import_map_instance(filename: &str) -> Result<map_instance::MapInstance, std::io::Error> {
     let file = File::open(filename)?;
     let mut buff_reader = io::BufReader::new(file);
     let mut line = String::new();
@@ -28,22 +28,22 @@ pub fn import_map_instance(filename: &str) -> Result<MapInstance, std::io::Error
     buff_reader.read_line(&mut line)?;
     let content: Vec<&str> = line.split_whitespace().collect();
     let num_agents = content[0].parse::<usize>().unwrap();
-    let mut starts: Vec<Vertex> = Vec::with_capacity(num_agents);
-    let mut goals: Vec<Vertex> = Vec::with_capacity(num_agents);
+    let mut starts: Vec<vertex::Vertex> = Vec::with_capacity(num_agents);
+    let mut goals: Vec<vertex::Vertex> = Vec::with_capacity(num_agents);
     for _ in 0..num_agents {
         line.clear();
         buff_reader.read_line(&mut line)?;
         let content: Vec<&str> = line.split_whitespace().collect();
-        let start = Vertex(
+        let start = vertex::Vertex(
             content[0].parse::<u16>().unwrap(),
             content[1].parse::<u16>().unwrap(),
         );
-        let goal = Vertex(
+        let goal = vertex::Vertex(
             content[2].parse::<u16>().unwrap(),
             content[3].parse::<u16>().unwrap(),
         );
         starts.push(start);
         goals.push(goal);
     }
-    Ok(MapInstance { map, starts, goals })
+    Ok(map_instance::MapInstance { map, starts, goals })
 }

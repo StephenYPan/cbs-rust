@@ -1,11 +1,11 @@
-use crate::datatype::constraint::Location;
+use crate::datatype::constraint;
 use std::fmt;
 
 #[derive(Eq)]
 pub struct Collision {
     pub a1: u8,
     pub a2: u8,
-    pub loc: Location,
+    pub loc: constraint::Location,
     pub timestep: u16,
 }
 
@@ -16,7 +16,7 @@ impl PartialEq for Collision {
 }
 
 impl Collision {
-    pub fn new(a1: u8, a2: u8, loc: Location, timestep: u16) -> Collision {
+    pub fn new(a1: u8, a2: u8, loc: constraint::Location, timestep: u16) -> Collision {
         Collision {
             a1,
             a2,

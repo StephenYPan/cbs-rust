@@ -1,34 +1,33 @@
-use crate::datatype::{constraint::Constraint, edge::Edge, vertex::Vertex};
-use crate::single_agent::dijkstra::get_next_loc;
-use std::cmp::Ordering;
+use crate::datatype::{constraint, edge, vertex};
+use crate::single_agent::dijkstra;
 use std::collections::{BinaryHeap, HashMap, HashSet};
 
 /// Return true if the action is a negative constraint, otherwise false.
 fn is_neg_constraint(
-    cur_loc: Vertex,
-    next_loc: Vertex,
+    cur_loc: vertex::Vertex,
+    next_loc: vertex::Vertex,
     next_t: u16,
-    neg_constraints: &HashSet<(Edge, bool, u16)>,
+    neg_constraints: &HashSet<(edge::Edge, bool, u16)>,
 ) -> bool {
     // Checks hashset for edge then vertex.
-    match neg_constraints.get(&(Edge(cur_loc, next_loc), true, next_t)) {
+    match neg_constraints.get(&(edge::Edge(cur_loc, next_loc), true, next_t)) {
         Some(_) => true,
         None => neg_constraints
-            .get(&(Edge(Vertex(0, 0), next_loc), false, next_t))
+            .get(&(edge::Edge(vertex::Vertex(0, 0), next_loc), false, next_t))
             .is_some(),
     }
 }
 
 /// Return true if the action is not a positive constraint, otherwise false.
 fn is_pos_constraint(
-    cur_loc: Vertex,
-    next_loc: Vertex,
+    cur_loc: vertex::Vertex,
+    next_loc: vertex::Vertex,
     next_t: u16,
-    pos_constraints: &HashMap<(u16, bool), Edge>,
+    pos_constraints: &HashMap<(u16, bool), edge::Edge>,
 ) -> bool {
     // Check hashmap for edge then vertex.
     match pos_constraints.get(&(next_t, true)) {
-        Some(&edge) => edge != Edge(cur_loc, next_loc),
+        Some(&edge) => edge != edge::Edge(cur_loc, next_loc),
         None => match pos_constraints.get(&(next_t, false)) {
             Some(&edge) => edge.1 != next_loc,
             None => false,
@@ -39,11 +38,11 @@ fn is_pos_constraint(
 /// Find the shortest path from start to goal such that it satisfies the given constraints.
 pub fn astar(
     map: &[Vec<u8>],
-    start_loc: &Vertex,
-    goal_loc: &Vertex,
-    h_values: &HashMap<Vertex, u16>,
-    constraints: &[Constraint],
-) -> Option<Vec<Vertex>> {
+    start_loc: &vertex::Vertex,
+    goal_loc: &vertex::Vertex,
+    h_values: &HashMap<vertex::Vertex, u16>,
+    constraints: &[constraint::Constraint],
+) -> Option<Vec<vertex::Vertex>> {
     let mut open_list: BinaryHeap<Node> = BinaryHeap::new();
     let mut tree = Tree::new();
 
@@ -51,12 +50,12 @@ pub fn astar(
         .iter()
         .filter(|c| !c.is_positive)
         .fold(0, |acc, c| acc.max(c.timestep));
-    let neg_constraints: HashSet<(Edge, bool, u16)> = constraints
+    let neg_constraints: HashSet<(edge::Edge, bool, u16)> = constraints
         .iter()
         .filter(|c| !c.is_positive)
         .map(|c| (c.loc, c.is_edge, c.timestep))
         .collect();
-    let pos_constraints: HashMap<(u16, bool), Edge> = constraints
+    let pos_constraints: HashMap<(u16, bool), edge::Edge> = constraints
         .iter()
         .filter(|c| c.is_positive)
         .map(|c| ((c.timestep, c.is_edge), c.loc))
@@ -72,7 +71,7 @@ pub fn astar(
             return Some(tree.get_path(cur_idx));
         }
         for action in 0..5 {
-            let next_loc = match get_next_loc(map, cur_node.loc, action) {
+            let next_loc = match dijkstra::get_next_loc(map, cur_node.loc, action) {
                 Some(vertex) => vertex,
                 None => continue,
             };
@@ -102,7 +101,7 @@ pub fn astar(
 struct Tree {
     tree: Vec<Node>,
     parent_node: Vec<usize>,
-    duplicate_node: HashMap<(Vertex, u16), usize>,
+    duplicate_node: HashMap<(vertex::Vertex, u16), usize>,
 }
 
 impl Tree {
@@ -118,7 +117,7 @@ impl Tree {
     /// If node does not exists, then add a new node and return the node
     fn add_node(
         &mut self,
-        loc: Vertex,
+        loc: vertex::Vertex,
         g_val: u16,
         h_val: u16,
         timestep: u16,
@@ -153,9 +152,9 @@ impl Tree {
     }
 
     /// Runtime is O(c) where c is the path length.
-    fn get_path(&self, goal_idx: usize) -> Vec<Vertex> {
+    fn get_path(&self, goal_idx: usize) -> Vec<vertex::Vertex> {
         // Travel backwards from the goal node to the start node.
-        let mut path: Vec<Vertex> = vec![self.tree[goal_idx].loc];
+        let mut path: Vec<vertex::Vertex> = vec![self.tree[goal_idx].loc];
         let mut next_idx = self.parent_node[goal_idx];
         while next_idx != 0 {
             path.push(self.tree[next_idx].loc);
@@ -168,9 +167,11 @@ impl Tree {
     }
 }
 
+use std::cmp::Ordering;
+
 #[derive(Debug, Eq, Copy, Clone)]
 struct Node {
-    loc: Vertex,
+    loc: vertex::Vertex,
     g_val: u16,
     h_val: u16,
     timestep: u16,
@@ -197,7 +198,7 @@ impl PartialOrd for Node {
 }
 
 impl Node {
-    fn new(loc: Vertex, g_val: u16, h_val: u16, timestep: u16) -> Node {
+    fn new(loc: vertex::Vertex, g_val: u16, h_val: u16, timestep: u16) -> Node {
         Node {
             loc,
             g_val,

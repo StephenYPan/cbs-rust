@@ -1,8 +1,8 @@
-use crate::datatype::vertex::Vertex;
+use crate::datatype::vertex;
 use std::fmt;
 
 #[derive(Eq, PartialEq, Hash, Copy, Clone)]
-pub struct Edge(pub Vertex, pub Vertex);
+pub struct Edge(pub vertex::Vertex, pub vertex::Vertex);
 
 impl fmt::Debug for Edge {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

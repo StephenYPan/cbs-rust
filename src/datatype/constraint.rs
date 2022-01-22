@@ -1,24 +1,24 @@
-use crate::datatype::{edge::Edge, vertex::Vertex};
+use crate::datatype::{edge, vertex};
 use std::fmt;
 use std::hash::{Hash, Hasher};
 
 #[derive(Eq, PartialEq, Copy, Clone)]
 pub enum Location {
-    Vertex(Vertex),
-    Edge(Edge),
+    Vertex(vertex::Vertex),
+    Edge(edge::Edge),
 }
 
 pub trait IntoLocation {
     fn into(self) -> Location;
 }
 
-impl IntoLocation for Vertex {
+impl IntoLocation for vertex::Vertex {
     fn into(self) -> Location {
         Location::Vertex(self)
     }
 }
 
-impl IntoLocation for Edge {
+impl IntoLocation for edge::Edge {
     fn into(self) -> Location {
         Location::Edge(self)
     }
@@ -45,7 +45,7 @@ impl fmt::Debug for Location {
 #[derive(Eq, Copy, Clone)]
 pub struct Constraint {
     pub agent: u8,
-    pub loc: Edge,
+    pub loc: edge::Edge,
     pub is_edge: bool,
     pub timestep: u16,
     pub is_positive: bool,
@@ -72,7 +72,7 @@ impl Hash for Constraint {
 impl Constraint {
     pub fn new(agent: u8, loc: Location, timestep: u16, is_positive: bool) -> Constraint {
         let location = match loc {
-            Location::Vertex(v) => (Edge(Vertex(0, 0), v), false),
+            Location::Vertex(v) => (edge::Edge(vertex::Vertex(0, 0), v), false),
             Location::Edge(e) => (e, true),
         };
         Constraint {
