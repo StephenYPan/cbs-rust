@@ -72,15 +72,12 @@ pub fn find_cardinal_conflict(
     // Find the first cardinal conflicts and return it.
     let min_timestep = min(path1.len(), path2.len()) - 1;
     for i in 0..min_timestep {
-        let layer1: HashSet<vertex::Vertex> = mdd1.mdd[i].iter().map(|edge| edge.1).collect();
-        let layer2: HashSet<vertex::Vertex> = mdd2.mdd[i].iter().map(|edge| edge.1).collect();
-        if layer1.len() != 1 || layer2.len() != 1 {
-            continue;
-        }
-        let edge1 = mdd1.mdd[i][0];
-        let edge2 = mdd2.mdd[i][0];
+        let layer1 = &mdd1.mdd[i];
+        let layer2 = &mdd2.mdd[i];
+        let edge1 = layer1[0];
+        let edge2 = layer2[0];
         // Check for edge collision, compare first edge with reversed second edge
-        if edge1.0 == edge2.1 && edge1.1 == edge2.0 {
+        if layer1.len() == 1 && layer2.len() == 1 && edge1.0 == edge2.1 && edge1.1 == edge2.0 {
             return Some(collision::Collision::new(
                 agent1,
                 agent2,
@@ -88,14 +85,13 @@ pub fn find_cardinal_conflict(
                 (i + 1) as u16,
             ));
         }
-        // Check for vertex collision
-        let vertex1 = edge1.1;
-        let vertex2 = edge2.1;
-        if vertex1 == vertex2 {
+        let vertex1: HashSet<vertex::Vertex> = layer1.iter().map(|edge| edge.1).collect();
+        let vertex2: HashSet<vertex::Vertex> = layer2.iter().map(|edge| edge.1).collect();
+        if vertex1.len() == 1 && vertex2.len() == 1 && vertex1 == vertex2 {
             return Some(collision::Collision::new(
                 agent1,
                 agent2,
-                constraint::Location::new(vertex1),
+                constraint::Location::new(layer1[0].1),
                 (i + 1) as u16,
             ));
         }
