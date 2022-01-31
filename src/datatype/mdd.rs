@@ -1,8 +1,8 @@
 #![allow(unused)]
 use crate::datatype::{collision, constraint, edge, vertex};
 use crate::single_agent::dijkstra;
+use std::cmp::min;
 use std::collections::{hash_map::DefaultHasher, HashSet};
-use std::fmt;
 use std::hash::{Hash, Hasher};
 
 use cached::proc_macro::cached;
@@ -12,8 +12,26 @@ use rayon::prelude::*;
 const MDD_CACHE_SIZE: usize = 1000;
 const PARTIAL_MDD_CACHE_SIZE: usize = 1000;
 
+#[derive(Debug, Eq, Clone)]
 pub struct Mdd {
     pub mdd: Vec<Vec<edge::Edge>>,
+}
+
+impl PartialEq for Mdd {
+    fn eq(&self, other: &Self) -> bool {
+        if self.mdd.len() != other.mdd.len() {
+            false
+        } else {
+            for (i, layer) in self.mdd.iter().enumerate() {
+                for (e1, e2) in layer.iter().zip(&other.mdd[i]) {
+                    if e1 != e2 {
+                        return false;
+                    }
+                }
+            }
+            true
+        }
+    }
 }
 
 impl Mdd {
@@ -26,20 +44,119 @@ impl Mdd {
         constraints.hash(&mut state);
         let hash = state.finish();
         let mdd = build_mdd(map, path, constraints, path[0], hash);
+        // assert the mdd contains the path edges
+        for (timestep, edge) in path.iter().zip(&path[1..]).enumerate() {
+            assert!(
+                &mdd[timestep]
+                    .iter()
+                    .any(|e| e.0 == *edge.0 && e.1 == *edge.1),
+                "path edge: {:?} at t={} not in mdd[{}]: {:?}",
+                edge,
+                timestep,
+                timestep,
+                mdd[timestep]
+            );
+        }
         Mdd { mdd }
     }
+}
 
-    pub fn find_cardinal_conflict(&self, other: &Self) -> Option<collision::Collision> {
-        None
+pub fn find_cardinal_conflict(
+    mdd1: &Mdd,
+    mdd2: &Mdd,
+    agent1: u8,
+    agent2: u8,
+    path1: &[vertex::Vertex],
+    path2: &[vertex::Vertex],
+) -> Option<collision::Collision> {
+    // Find the first cardinal conflicts and return it.
+    let min_timestep = min(path1.len(), path2.len()) - 1;
+    for i in 0..min_timestep {
+        let layer1: HashSet<vertex::Vertex> = mdd1.mdd[i].iter().map(|edge| edge.1).collect();
+        let layer2: HashSet<vertex::Vertex> = mdd2.mdd[i].iter().map(|edge| edge.1).collect();
+        if layer1.len() != 1 || layer2.len() != 1 {
+            continue;
+        }
+        let edge1 = mdd1.mdd[i][0];
+        let edge2 = mdd2.mdd[i][0];
+        // Check for edge collision, compare first edge with reversed second edge
+        if edge1.0 == edge2.1 && edge1.1 == edge2.0 {
+            return Some(collision::Collision::new(
+                agent1,
+                agent2,
+                constraint::Location::new(edge1),
+                (i + 1) as u16,
+            ));
+        }
+        // Check for vertex collision
+        let vertex1 = edge1.1;
+        let vertex2 = edge2.1;
+        if vertex1 == vertex2 {
+            return Some(collision::Collision::new(
+                agent1,
+                agent2,
+                constraint::Location::new(vertex1),
+                (i + 1) as u16,
+            ));
+        }
+    }
+    find_extended_mdd_conflict(mdd1, mdd2, agent1, agent2, path1, path2)
+}
+
+pub fn find_dependency_conflict(
+    mdd1: &Mdd,
+    mdd2: &Mdd,
+    agent1: u8,
+    agent2: u8,
+    path1: &[vertex::Vertex],
+    path2: &[vertex::Vertex],
+) -> Option<collision::Collision> {
+    // Find all the dependency conflicts return the last one.
+    // . b . .
+    // a . d .
+    // . d d A
+    // . . B .
+    let min_timestep = min(path1.len(), path2.len());
+    for i in 0..min_timestep {
+        //
     }
 
-    pub fn find_dependency_conflict(&self, other: &Self) -> Option<collision::Collision> {
-        None
-    }
+    find_extended_mdd_conflict(mdd1, mdd2, agent1, agent2, path1, path2)
+}
 
-    fn find_extended_mdd_conflict(&self, other: &Self) -> Option<collision::Collision> {
-        None
+fn find_extended_mdd_conflict(
+    mdd1: &Mdd,
+    mdd2: &Mdd,
+    agent1: u8,
+    agent2: u8,
+    path1: &[vertex::Vertex],
+    path2: &[vertex::Vertex],
+) -> Option<collision::Collision> {
+    // Find the first cardinal conflicts and return it.
+    if path1.len() == path2.len() {
+        return None;
     }
+    let start_time = min(path1.len(), path2.len()) - 1;
+    let mut mdd;
+    let mut other_vertex: vertex::Vertex;
+    if path1.len() > path2.len() {
+        mdd = mdd1;
+        other_vertex = *path2.last().unwrap();
+    } else {
+        mdd = mdd2;
+        other_vertex = *path1.last().unwrap();
+    }
+    for (i, v) in mdd.mdd[start_time..].iter().enumerate() {
+        if v.len() == 1 && v[0].1 == other_vertex {
+            return Some(collision::Collision::new(
+                agent1,
+                agent2,
+                constraint::Location::new(other_vertex),
+                (start_time + i + 1) as u16,
+            ));
+        }
+    }
+    None
 }
 
 #[cached(
@@ -138,18 +255,6 @@ fn build_mdd(
         for position in edge_position {
             mdd[(timestep + 1) as usize].remove(position);
         }
-    }
-    // assert the mdd contains the path edges
-    for (timestep, edge) in path.iter().zip(&path[1..]).enumerate() {
-        assert!(
-            &mdd[timestep]
-                .iter()
-                .any(|e| e.0 == *edge.0 && e.1 == *edge.1),
-            "path edge: {:?} at t={} not in mdd: {:?}",
-            edge,
-            timestep,
-            mdd[timestep]
-        );
     }
     for v in &mut mdd {
         v.shrink_to_fit();
