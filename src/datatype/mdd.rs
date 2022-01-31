@@ -7,7 +7,7 @@ use std::hash::{Hash, Hasher};
 
 use cached::proc_macro::cached;
 use cached::SizedCache;
-use rayon::prelude::*;
+// use rayon::prelude::*;
 
 const MDD_CACHE_SIZE: usize = 1000;
 const PARTIAL_MDD_CACHE_SIZE: usize = 1000;
@@ -133,8 +133,8 @@ fn find_extended_mdd_conflict(
         return None;
     }
     let start_time = min(path1.len(), path2.len()) - 1;
-    let mut mdd;
-    let mut other_vertex: vertex::Vertex;
+    let mdd;
+    let other_vertex: vertex::Vertex;
     if path1.len() > path2.len() {
         mdd = mdd1;
         other_vertex = *path2.last().unwrap();
@@ -275,7 +275,7 @@ fn build_partial_mdd(
     let start_h_val = dijkstra::compute_heuristics(map, start);
     let goal_h_val = dijkstra::compute_heuristics(map, goal);
     let valid_locations: Vec<(vertex::Vertex, u16)> = start_h_val
-        .par_iter() // parallelize iter
+        .iter() // parallelize iter(?)
         .filter(|(k, v)| **v + *goal_h_val.get(k).unwrap() <= max_cost)
         .map(|(k, v)| (*k, *v))
         .collect();
