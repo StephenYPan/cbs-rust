@@ -3,7 +3,6 @@ use crate::single_agent::{astar, dijkstra};
 use std::cmp::max;
 use std::collections::{BinaryHeap, HashMap};
 use std::time::Instant;
-
 // use rayon::prelude::*;
 
 fn get_sum_cost(paths: &[Vec<vertex::Vertex>]) -> u16 {
@@ -30,7 +29,7 @@ fn detect_collisions(paths: &[Vec<vertex::Vertex>]) -> Vec<collision::Collision>
                 let prev_loc1 = get_location(&paths[i], t - 1);
                 let prev_loc2 = get_location(&paths[j], t - 1);
                 if cur_loc1 == cur_loc2 {
-                    // vertex::Vertex collision
+                    // Vertex collision
                     collisions.push(collision::Collision::new(
                         i as u8,
                         j as u8,
@@ -40,7 +39,7 @@ fn detect_collisions(paths: &[Vec<vertex::Vertex>]) -> Vec<collision::Collision>
                     break;
                 }
                 if cur_loc1 == prev_loc2 && cur_loc2 == prev_loc1 {
-                    // edge::Edge collision
+                    // Edge collision
                     collisions.push(collision::Collision::new(
                         i as u8,
                         j as u8,
@@ -101,12 +100,12 @@ fn paths_violating_pos_constraint(
         let cur_loc = get_location(path, constraint.timestep as usize);
         let prev_loc = get_location(path, (constraint.timestep - 1) as usize);
         if !constraint.is_edge {
-            // vertex::Vertex violation
+            // Vertex violation
             if constraint.loc.1 == cur_loc {
                 agents.push(agent);
             }
         } else {
-            // edge::Edge violation
+            // Edge violation
             if constraint.loc.0 == prev_loc
                 || constraint.loc.1 == cur_loc
                 || constraint.loc == edge::Edge(cur_loc, prev_loc)
@@ -134,6 +133,7 @@ pub fn cbs(
     }
 
     let mut root_paths: Vec<Vec<vertex::Vertex>> = Vec::with_capacity(num_agents);
+    let mut root_mdds: Vec<mdd::Mdd> = Vec::with_capacity(num_agents);
     for i in 0..num_agents {
         let agent_constraints: Vec<constraint::Constraint> = match &constraints {
             Some(some_constraints) => some_constraints
@@ -147,7 +147,9 @@ pub fn cbs(
             Some(path) => root_paths.push(path),
             None => return None, // No solution
         };
+        root_mdds.push(mdd::Mdd::new(map, &root_paths[i], &agent_constraints));
     }
+
     let root_constraints: Vec<constraint::Constraint> = match constraints {
         Some(constraints) => constraints,
         None => Vec::new(),
@@ -163,6 +165,7 @@ pub fn cbs(
         root_paths,
         root_constraints,
         root_collisions,
+        root_mdds,
     );
 
     let mut pop_counter = 0;
@@ -199,6 +202,9 @@ pub fn cbs(
             let constraint_agent = new_constraint.agent as usize;
             let mut new_constraints: Vec<constraint::Constraint> = vec![new_constraint];
             new_constraints.extend(&cur_node.constraints);
+            let mut new_mdds: Vec<mdd::Mdd> = Vec::with_capacity(num_agents);
+            new_mdds.clone_from(&cur_node.mdds); // Clone parent, edits will not overwrite parent.
+
             let agent_constraints: Vec<constraint::Constraint> = new_constraints
                 .iter() // parallelize iter
                 .filter(|c| c.agent == constraint_agent as u8)
@@ -215,6 +221,9 @@ pub fn cbs(
                 Some(p) => new_paths[constraint_agent] = p,
                 None => continue, // New constraint yields no solution
             };
+            // Update mdd given the new constraints
+            new_mdds[constraint_agent] =
+                mdd::Mdd::new(map, &new_paths[constraint_agent], &agent_constraints);
 
             // Check for positive constraint
             if new_constraint.is_positive {
@@ -255,6 +264,12 @@ pub fn cbs(
                             break;
                         }
                     };
+                    // update agent's mdd
+                    new_mdds[violating_agent] = mdd::Mdd::new(
+                        map,
+                        &new_paths[violating_agent],
+                        &violating_agent_constraints,
+                    );
                 }
                 if invalid_pos_constraint {
                     // Positive constraint yields no solution
@@ -273,6 +288,7 @@ pub fn cbs(
                 new_paths,
                 new_constraints,
                 new_collisions,
+                new_mdds,
             );
 
             open_list.push(new_node);
@@ -291,6 +307,7 @@ pub struct Node {
     pub paths: Vec<Vec<vertex::Vertex>>,
     pub constraints: Vec<constraint::Constraint>,
     pub collisions: Vec<collision::Collision>,
+    pub mdds: Vec<mdd::Mdd>,
 }
 
 impl PartialEq for Node {
@@ -333,6 +350,7 @@ impl Node {
         paths: Vec<Vec<vertex::Vertex>>,
         constraints: Vec<constraint::Constraint>,
         collisions: Vec<collision::Collision>,
+        mdds: Vec<mdd::Mdd>,
     ) -> Node {
         Node {
             g_val,
@@ -340,6 +358,7 @@ impl Node {
             paths,
             constraints,
             collisions,
+            mdds,
         }
     }
 }
