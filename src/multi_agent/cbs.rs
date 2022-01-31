@@ -178,6 +178,13 @@ pub fn cbs(
     while !open_list.is_empty() {
         let cur_node = open_list.pop().unwrap();
         pop_counter += 1;
+        // println!(
+        //     "pop: [f-val: {}, g-val: {}, h-val: {}, num_col: {}]",
+        //     cur_node.g_val + cur_node.h_val,
+        //     cur_node.g_val,
+        //     cur_node.h_val,
+        //     cur_node.collisions.len()
+        // );
         if cur_node.collisions.is_empty() {
             // Solution found
             let elapsed_time = now.elapsed();
@@ -187,13 +194,31 @@ pub fn cbs(
             println!("Nodes generated: {}", push_counter);
             return Some(cur_node.paths);
         }
-        // TODO: Figure out cardinal collision
-        // TODO: Try collision bypass if non-cardinal
-        let cur_collision = &cur_node.collisions[0];
+        let mut cur_collision: collision::Collision = cur_node.collisions[0];
+        let mut is_cardinal_conflict = false;
+        for c in &cur_node.collisions {
+            let a1 = c.a1 as usize;
+            let a2 = c.a2 as usize;
+            if let Some(cardinal_conflict) = mdd::find_cardinal_conflict(
+                &cur_node.mdds[a1],
+                &cur_node.mdds[a2],
+                a1 as u8,
+                a2 as u8,
+                &cur_node.paths[a1],
+                &cur_node.paths[a2],
+            ) {
+                cur_collision = cardinal_conflict;
+                is_cardinal_conflict = true;
+                break;
+            }
+        }
+        if !is_cardinal_conflict {
+            // TODO: Attempt to bypass
+        }
         let new_constraints = if disjoint {
-            disjoint_split(cur_collision)
+            disjoint_split(&cur_collision)
         } else {
-            standard_split(cur_collision)
+            standard_split(&cur_collision)
         };
         // TODO: Add one thread for constraint checking.
         // Store result node in 2 slot vectors
@@ -333,7 +358,11 @@ impl Ord for Node {
     fn cmp(&self, other: &Self) -> Ordering {
         let f_val = self.g_val + self.h_val;
         let other_f_val = other.g_val + other.h_val;
-        f_val.cmp(&other_f_val).reverse()
+        if f_val == other_f_val {
+            self.collisions.len().cmp(&other.collisions.len()).reverse()
+        } else {
+            f_val.cmp(&other_f_val).reverse()
+        }
     }
 }
 
