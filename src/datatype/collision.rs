@@ -1,7 +1,7 @@
 use crate::datatype::constraint;
 use std::fmt;
 
-#[derive(Eq)]
+#[derive(Eq, Copy, Clone)]
 pub struct Collision {
     pub a1: u8,
     pub a2: u8,
