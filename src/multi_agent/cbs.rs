@@ -75,6 +75,7 @@ fn standard_split(collision: &collision::Collision) -> Vec<constraint::Constrain
 
 fn disjoint_split(collision: &collision::Collision) -> Vec<constraint::Constraint> {
     let mut result = standard_split(collision);
+    // TODO: Convert this to a deterministic picking method
     // Pick a random agent.
     let random_idx = (Instant::now().elapsed().as_nanos() % 2) as usize;
     let random_agent = result[random_idx].agent;
@@ -117,6 +118,65 @@ fn paths_violating_pos_constraint(
     agents
 }
 
+/// Attempt to bypass non-cardinal conflicts. If bypass was successful
+/// path will be edited and new collisions will be computed, otherwise
+/// return the first collision in collisions.
+fn bypass_collisions(
+    node: &mut Node,
+    map: &[Vec<u8>],
+    starts: &[vertex::Vertex],
+    goals: &[vertex::Vertex],
+    h_values: &[HashMap<vertex::Vertex, u16>],
+    disjoint: bool,
+) -> Option<collision::Collision> {
+    for collision in &node.collisions {
+        let constraints = if disjoint {
+            disjoint_split(collision)
+        } else {
+            standard_split(collision)
+        };
+        for constraint in constraints {
+            let agent = constraint.agent as usize;
+            let mut temp_constraints: Vec<constraint::Constraint> = vec![constraint];
+            temp_constraints.extend(&node.constraints);
+            let agent_constraints: Vec<constraint::Constraint> = temp_constraints
+                .iter()
+                .filter(|c| c.agent == agent as u8)
+                .copied()
+                .collect();
+            match astar::astar(
+                map,
+                &starts[agent],
+                &goals[agent],
+                &h_values[agent],
+                &agent_constraints,
+            ) {
+                Some(path) => {
+                    // Edit path iff new path is same length as old path
+                    // and the number of collisions has decreased.
+                    if node.paths[agent].len() == path.len() {
+                        let num_collisions = detect_collisions(&node.paths).len();
+                        let mut new_paths = node.paths.clone();
+                        new_paths[agent] = path.clone();
+                        let new_num_collisions = detect_collisions(&new_paths).len();
+                        if new_num_collisions < num_collisions {
+                            node.paths[agent] = path;
+                        }
+                    }
+                }
+                None => continue, // New constraint yields no solution
+            };
+        }
+    }
+    node.collisions = detect_collisions(&node.paths);
+    node.g_val = get_sum_cost(&node.paths);
+    if node.collisions.is_empty() {
+        None // Found solution
+    } else {
+        Some(node.collisions[0])
+    }
+}
+
 pub fn cbs(
     map: &[Vec<u8>],
     starts: Vec<vertex::Vertex>,
@@ -137,7 +197,7 @@ pub fn cbs(
     for i in 0..num_agents {
         let agent_constraints: Vec<constraint::Constraint> = match &constraints {
             Some(some_constraints) => some_constraints
-                .iter() // parallelize iter
+                .iter() // parallelize iter(?)
                 .filter(|c| c.agent == i as u8)
                 .copied()
                 .collect(),
@@ -176,7 +236,7 @@ pub fn cbs(
     push_counter += 1;
 
     while !open_list.is_empty() {
-        let cur_node = open_list.pop().unwrap();
+        let mut cur_node = open_list.pop().unwrap();
         pop_counter += 1;
         // println!(
         //     "pop: [f-val: {}, g-val: {}, h-val: {}, num_col: {}]",
@@ -194,6 +254,12 @@ pub fn cbs(
             println!("Nodes generated: {}", push_counter);
             return Some(cur_node.paths);
         }
+        // TODO: Lazy heuristics
+
+        // TODO: Meta-agent
+
+        // Improved cbs: Always split on cardinal conflicts first,
+        // then attempt to bypass when there are no cardinal conflicts left.
         let mut cur_collision: collision::Collision = cur_node.collisions[0];
         let mut is_cardinal_conflict = false;
         for c in &cur_node.collisions {
@@ -213,7 +279,14 @@ pub fn cbs(
             }
         }
         if !is_cardinal_conflict {
-            // TODO: Attempt to bypass
+            // Attempt bypass to reduce number of collisions
+            match bypass_collisions(&mut cur_node, map, &starts, &goals, &h_values, disjoint) {
+                Some(collision) => cur_collision = collision,
+                None => {
+                    open_list.push(cur_node);
+                    continue;
+                }
+            };
         }
         let new_constraints = if disjoint {
             disjoint_split(&cur_collision)
@@ -231,7 +304,7 @@ pub fn cbs(
             new_mdds.clone_from(&cur_node.mdds); // Clone parent, edits will not overwrite parent.
 
             let agent_constraints: Vec<constraint::Constraint> = new_constraints
-                .iter() // parallelize iter
+                .iter() // parallelize iter(?)
                 .filter(|c| c.agent == constraint_agent as u8)
                 .copied()
                 .collect();
@@ -359,6 +432,7 @@ impl Ord for Node {
         let f_val = self.g_val + self.h_val;
         let other_f_val = other.g_val + other.h_val;
         if f_val == other_f_val {
+            // Tie-breaking method
             self.collisions.len().cmp(&other.collisions.len()).reverse()
         } else {
             f_val.cmp(&other_f_val).reverse()
