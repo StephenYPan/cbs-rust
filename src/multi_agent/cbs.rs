@@ -3,6 +3,7 @@ use crate::single_agent::{astar, dijkstra};
 use std::cmp::max;
 use std::collections::{BinaryHeap, HashMap};
 use std::time::Instant;
+
 // use rayon::prelude::*;
 
 fn get_sum_cost(paths: &[Vec<vertex::Vertex>]) -> u16 {
@@ -129,6 +130,7 @@ fn bypass_collisions(
     h_values: &[HashMap<vertex::Vertex, u16>],
     disjoint: bool,
 ) -> Option<collision::Collision> {
+    let mut num_collisions = detect_collisions(&node.paths).len();
     for collision in &node.collisions {
         let constraints = if disjoint {
             disjoint_split(collision)
@@ -155,16 +157,16 @@ fn bypass_collisions(
                     // Edit path iff new path is same length as old path
                     // and the number of collisions has decreased.
                     if node.paths[agent].len() == path.len() {
-                        let num_collisions = detect_collisions(&node.paths).len();
                         let mut new_paths = node.paths.clone();
                         new_paths[agent] = path.clone();
                         let new_num_collisions = detect_collisions(&new_paths).len();
                         if new_num_collisions < num_collisions {
                             node.paths[agent] = path;
+                            num_collisions = new_num_collisions;
                         }
                     }
                 }
-                None => continue, // New constraint yields no solution
+                None => continue, // Constraint yields no solution, skip
             };
         }
     }
