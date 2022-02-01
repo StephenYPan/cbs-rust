@@ -292,9 +292,6 @@ pub fn cbs(
         } else {
             standard_split(&cur_collision)
         };
-        // TODO: Add one thread for constraint checking.
-        // Store result node in 2 slot vectors
-        // and push them to open_list after thread.join
         for new_constraint in new_constraints {
             let constraint_agent = new_constraint.agent as usize;
             let mut new_constraints: Vec<constraint::Constraint> = vec![new_constraint];
