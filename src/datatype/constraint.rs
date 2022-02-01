@@ -24,6 +24,12 @@ impl IntoLocation for edge::Edge {
     }
 }
 
+impl Default for Location {
+    fn default() -> Self {
+        Location::Vertex(vertex::Vertex(0, 0))
+    }
+}
+
 impl Location {
     pub fn new<L>(loc: L) -> Location
     where
