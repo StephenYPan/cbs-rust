@@ -109,7 +109,7 @@ pub fn find_dependency_conflict(
 ) -> Option<collision::Collision> {
     // Find all the dependency conflicts return the last one.
     // . b . .
-    // a . d .
+    // a d d .
     // . d d A
     // . . B .
     let min_timestep = min(path1.len(), path2.len());
@@ -132,7 +132,6 @@ fn find_extended_mdd_conflict(
     if path1.len() == path2.len() {
         return None;
     }
-    let start_time = min(path1.len(), path2.len()) - 1;
     let mdd;
     let other_vertex: vertex::Vertex;
     if path1.len() > path2.len() {
@@ -142,6 +141,7 @@ fn find_extended_mdd_conflict(
         mdd = mdd2;
         other_vertex = *path1.last().unwrap();
     }
+    let start_time = min(path1.len(), path2.len()) - 1;
     for (i, v) in mdd.mdd[start_time..].iter().enumerate() {
         if v.len() == 1 && v[0].1 == other_vertex {
             return Some(collision::Collision::new(

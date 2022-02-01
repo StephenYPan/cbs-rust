@@ -255,8 +255,8 @@ pub fn cbs(
 
         // TODO: Meta-agent
 
-        // Improved cbs: Always split on cardinal conflicts first,
-        // then attempt to bypass when there are no cardinal conflicts left.
+        // Improved cbs: Always split on cardinal or semi-cardinal conflicts, then
+        // attempt to bypass when there are no more cardinal and semi-cardinal conflicts.
         let mut cur_collision: collision::Collision = cur_node.collisions[0];
         let mut is_semi_or_cardinal_conflict = false;
         for c in &cur_node.collisions {
