@@ -66,11 +66,9 @@ pub fn find_cardinal_conflict(
     mdd2: &Mdd,
     agent1: u8,
     agent2: u8,
-    path1: &[vertex::Vertex],
-    path2: &[vertex::Vertex],
 ) -> Option<collision::Collision> {
     // Find the first cardinal conflicts and return it.
-    let min_timestep = min(path1.len(), path2.len()) - 1;
+    let min_timestep = min(mdd1.mdd.len(), mdd2.mdd.len());
     for i in 0..min_timestep {
         let layer1 = &mdd1.mdd[i];
         let layer2 = &mdd2.mdd[i];
@@ -96,7 +94,7 @@ pub fn find_cardinal_conflict(
             ));
         }
     }
-    find_extended_mdd_conflict(mdd1, mdd2, agent1, agent2, path1, path2)
+    find_extended_mdd_conflict(mdd1, mdd2, agent1, agent2)
 }
 
 pub fn find_dependency_conflict(
@@ -104,20 +102,45 @@ pub fn find_dependency_conflict(
     mdd2: &Mdd,
     agent1: u8,
     agent2: u8,
-    path1: &[vertex::Vertex],
-    path2: &[vertex::Vertex],
 ) -> Option<collision::Collision> {
     // Find all the dependency conflicts return the last one.
-    // . b . .
-    // a d d .
-    // . d d A
-    // . . B .
-    let min_timestep = min(path1.len(), path2.len());
+    let mut joint_mdd: HashSet<(usize, vertex::Vertex, vertex::Vertex)> = HashSet::new();
+    joint_mdd.insert((0, mdd1.mdd[0][0].0, mdd2.mdd[0][0].0));
+    let mut dependency_conflict = constraint::Location::default();
+    let min_timestep = min(mdd1.mdd.len(), mdd2.mdd.len());
     for i in 0..min_timestep {
-        //
+        let layer1 = &mdd1.mdd[i];
+        let layer2 = &mdd2.mdd[i];
+        let mut is_dependent = true;
+        for edge1 in layer1 {
+            for edge2 in layer2 {
+                if joint_mdd.get(&(i, edge1.0, edge2.0)).is_none() {
+                    continue;
+                }
+                if edge1.1 == edge2.1 {
+                    // Vertex dependency conflict
+                    dependency_conflict = constraint::Location::new(edge1.1);
+                    continue;
+                }
+                if edge1.0 == edge2.1 && edge1.1 == edge2.0 {
+                    // Edge dependency conflict
+                    dependency_conflict = constraint::Location::new(*edge1);
+                    continue;
+                }
+                joint_mdd.insert((i + 1, edge1.1, edge2.1));
+                is_dependent = false;
+            }
+        }
+        if is_dependent {
+            return Some(collision::Collision::new(
+                agent1,
+                agent2,
+                dependency_conflict,
+                (i + 1) as u16,
+            ));
+        }
     }
-
-    find_extended_mdd_conflict(mdd1, mdd2, agent1, agent2, path1, path2)
+    find_extended_mdd_conflict(mdd1, mdd2, agent1, agent2)
 }
 
 fn find_extended_mdd_conflict(
@@ -125,23 +148,21 @@ fn find_extended_mdd_conflict(
     mdd2: &Mdd,
     agent1: u8,
     agent2: u8,
-    path1: &[vertex::Vertex],
-    path2: &[vertex::Vertex],
 ) -> Option<collision::Collision> {
     // Find the first cardinal conflicts and return it.
-    if path1.len() == path2.len() {
+    if mdd1.mdd.len() == mdd2.mdd.len() {
         return None;
     }
+    let start_time = min(mdd1.mdd.len(), mdd2.mdd.len());
     let mdd;
     let other_vertex: vertex::Vertex;
-    if path1.len() > path2.len() {
+    if mdd1.mdd.len() > mdd2.mdd.len() {
         mdd = mdd1;
-        other_vertex = *path2.last().unwrap();
+        other_vertex = (*mdd2.mdd[start_time - 1].last().unwrap()).1;
     } else {
         mdd = mdd2;
-        other_vertex = *path1.last().unwrap();
+        other_vertex = (*mdd1.mdd[start_time - 1].last().unwrap()).1;
     }
-    let start_time = min(path1.len(), path2.len()) - 1;
     for (i, v) in mdd.mdd[start_time..].iter().enumerate() {
         if v.len() == 1 && v[0].1 == other_vertex {
             return Some(collision::Collision::new(
