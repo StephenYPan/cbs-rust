@@ -267,14 +267,31 @@ pub fn cbs(
                 &cur_node.mdds[a2],
                 a1 as u8,
                 a2 as u8,
-                &cur_node.paths[a1],
-                &cur_node.paths[a2],
             ) {
                 cur_collision = cardinal_conflict;
                 is_semi_or_cardinal_conflict = true;
                 break;
             }
-            // TODO: Call mdd::find_dependency_conflict
+            // FIXME: How to force the path to increase cost?
+            // The current code will split on the last dependency conflict
+            // but the path length will still maintain the same. The agent
+            // will adjust the path and new conflicts will occur. This will
+            // repeat until the agent runs out of possible moves and is
+            // forced to increase path cost.
+            // if let Some(semi_cardinal_conflict) = mdd::find_dependency_conflict(
+            //     &cur_node.mdds[a1],
+            //     &cur_node.mdds[a2],
+            //     a1 as u8,
+            //     a2 as u8,
+            // ) {
+            //     // cur_collision = semi_cardinal_conflict;
+            //     // is_semi_or_cardinal_conflict = true;
+            //     println!("{:?}", cur_node.paths[a1]);
+            //     println!("{:?}", cur_node.paths[a2]);
+            //     println!("{:?}", cur_node.constraints);
+            //     println!("{:?}\n", semi_cardinal_conflict);
+            //     break;
+            // }
         }
         if !is_semi_or_cardinal_conflict {
             // Attempt bypass to reduce number of collisions
