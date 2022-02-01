@@ -128,15 +128,10 @@ fn bypass_collisions(
     starts: &[vertex::Vertex],
     goals: &[vertex::Vertex],
     h_values: &[HashMap<vertex::Vertex, u16>],
-    disjoint: bool,
 ) -> Option<collision::Collision> {
-    let mut num_collisions = detect_collisions(&node.paths).len();
+    let mut num_collisions = node.collisions.len();
     for collision in &node.collisions {
-        let constraints = if disjoint {
-            disjoint_split(collision)
-        } else {
-            standard_split(collision)
-        };
+        let constraints = standard_split(collision);
         for constraint in constraints {
             let agent = constraint.agent as usize;
             let mut temp_constraints: Vec<constraint::Constraint> = vec![constraint];
@@ -263,7 +258,7 @@ pub fn cbs(
         // Improved cbs: Always split on cardinal conflicts first,
         // then attempt to bypass when there are no cardinal conflicts left.
         let mut cur_collision: collision::Collision = cur_node.collisions[0];
-        let mut is_cardinal_conflict = false;
+        let mut is_semi_or_cardinal_conflict = false;
         for c in &cur_node.collisions {
             let a1 = c.a1 as usize;
             let a2 = c.a2 as usize;
@@ -276,16 +271,18 @@ pub fn cbs(
                 &cur_node.paths[a2],
             ) {
                 cur_collision = cardinal_conflict;
-                is_cardinal_conflict = true;
+                is_semi_or_cardinal_conflict = true;
                 break;
             }
+            // TODO: Call mdd::find_dependency_conflict
         }
-        if !is_cardinal_conflict {
+        if !is_semi_or_cardinal_conflict {
             // Attempt bypass to reduce number of collisions
-            match bypass_collisions(&mut cur_node, map, &starts, &goals, &h_values, disjoint) {
+            match bypass_collisions(&mut cur_node, map, &starts, &goals, &h_values) {
                 Some(collision) => cur_collision = collision,
                 None => {
                     open_list.push(cur_node);
+                    push_counter += 1;
                     continue;
                 }
             };
