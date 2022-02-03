@@ -158,10 +158,10 @@ fn find_extended_mdd_conflict(
     let other_vertex: vertex::Vertex;
     if mdd1.mdd.len() > mdd2.mdd.len() {
         mdd = mdd1;
-        other_vertex = (*mdd2.mdd[start_time - 1].last().unwrap()).1;
+        other_vertex = mdd2.mdd[start_time - 1].last().unwrap().1;
     } else {
         mdd = mdd2;
-        other_vertex = (*mdd1.mdd[start_time - 1].last().unwrap()).1;
+        other_vertex = mdd1.mdd[start_time - 1].last().unwrap().1;
     }
     for (i, v) in mdd.mdd[start_time..].iter().enumerate() {
         if v.len() == 1 && v[0].1 == other_vertex {
@@ -239,38 +239,38 @@ fn build_mdd(
     }
     // Remove all the edges that do not generate a valid path by doing a forward and backward pass.
     let mdd_length = path_len - 1;
-    for timestep in (mdd_length - 1)..1 {
+    for timestep in (1..mdd_length).rev() {
         // Remove backwards, nodes without children
         let cur_layer: HashSet<vertex::Vertex> =
             mdd[timestep as usize].iter().map(|edge| edge.0).collect();
         let prev_layer = &mdd[(timestep - 1) as usize];
-        let prev_layer_size = prev_layer.len() - 1;
+
         let mut edge_position: Vec<usize> = vec![];
-        for (i, edge) in prev_layer.iter().rev().enumerate() {
+        for (edge_index, edge) in prev_layer.iter().enumerate().rev() {
             match cur_layer.contains(&edge.1) {
                 true => {}
-                false => edge_position.push(prev_layer_size - i),
+                false => edge_position.push(edge_index),
             }
         }
-        for position in edge_position {
-            mdd[(timestep + 1) as usize].remove(position);
+        for edge in edge_position {
+            mdd[(timestep - 1) as usize].remove(edge);
         }
     }
-    for timestep in 1..(mdd_length - 1) {
+    for timestep in 0..(mdd_length - 1) {
         // Remove forward, nodes without parents
         let cur_layer: HashSet<vertex::Vertex> =
             mdd[timestep as usize].iter().map(|edge| edge.1).collect();
         let next_layer = &mdd[(timestep + 1) as usize];
-        let next_layer_size = next_layer.len() - 1;
+
         let mut edge_position: Vec<usize> = vec![];
-        for (i, edge) in next_layer.iter().rev().enumerate() {
+        for (edge_index, edge) in next_layer.iter().enumerate().rev() {
             match cur_layer.contains(&edge.0) {
                 true => {}
-                false => edge_position.push(next_layer_size - i),
+                false => edge_position.push(edge_index),
             }
         }
-        for position in edge_position {
-            mdd[(timestep + 1) as usize].remove(position);
+        for edge in edge_position {
+            mdd[(timestep + 1) as usize].remove(edge);
         }
     }
     for v in &mut mdd {
