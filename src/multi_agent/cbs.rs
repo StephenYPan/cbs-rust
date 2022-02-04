@@ -205,55 +205,46 @@ fn bypass_collisions(
 
 /// Mutates the input vector of collisions by replacing the collisions
 /// with cardinal or semi-cardinal collisions if applicable.
-fn detect_cardinal_conflicts(node: &mut Node) {
+fn detect_cardinal_conflicts(collisions: &mut [collision::Collision], mdds: &[mdd::Mdd]) {
     let mut conflict_index: Vec<usize> = Vec::new();
     let mut conflicts: Vec<collision::Collision> = Vec::new();
 
     let mut mdd_hashes: HashMap<usize, u64> = HashMap::new();
-    let agents: HashSet<usize> = node
-        .collisions
+    let agents: HashSet<usize> = collisions
         .iter()
         .flat_map(|c| vec![c.a1 as usize, c.a2 as usize])
         .collect();
     for i in agents.iter() {
         let mut state = DefaultHasher::new();
-        for layer in &node.mdds[*i].mdd {
+        for layer in &mdds[*i].mdd {
             layer.hash(&mut state);
         }
         let hash = state.finish();
         mdd_hashes.insert(*i, hash);
     }
 
-    for (i, collision) in node.collisions.iter_mut().enumerate() {
+    for (i, collision) in collisions.iter().enumerate() {
         let a1 = collision.a1 as usize;
         let a2 = collision.a2 as usize;
         let joint_mdd_hash = mdd_hashes[&a1] ^ mdd_hashes[&a2];
 
-        if let Some(cardinal_conflict) = mdd::find_cardinal_conflict(
-            &node.mdds[a1],
-            &node.mdds[a2],
-            a1 as u8,
-            a2 as u8,
-            joint_mdd_hash,
-        ) {
+        if let Some(cardinal_conflict) =
+            mdd::find_cardinal_conflict(&mdds[a1], &mdds[a2], a1 as u8, a2 as u8, joint_mdd_hash)
+        {
             conflict_index.push(i);
             conflicts.push(cardinal_conflict);
             continue;
         }
-        if let Some(semi_cardinal_conflict) = mdd::find_dependency_conflict(
-            &node.mdds[a1],
-            &node.mdds[a2],
-            a1 as u8,
-            a2 as u8,
-            joint_mdd_hash,
-        ) {
+        if let Some(semi_cardinal_conflict) =
+            mdd::find_dependency_conflict(&mdds[a1], &mdds[a2], a1 as u8, a2 as u8, joint_mdd_hash)
+        {
             conflict_index.push(i);
             conflicts.push(semi_cardinal_conflict);
             continue;
         }
     }
     for (i, c) in conflict_index.iter().zip(conflicts) {
-        node.collisions[*i] = c;
+        collisions[*i] = c;
     }
 }
 
@@ -354,7 +345,7 @@ pub fn cbs(
         // Improved cbs: Always split on cardinal or semi-cardinal conflicts, then
         // attempt to bypass when there are no more cardinal and semi-cardinal conflicts.
         let col_now = Instant::now();
-        detect_cardinal_conflicts(&mut cur_node);
+        detect_cardinal_conflicts(&mut cur_node.collisions, &cur_node.mdds);
         col_time += col_now.elapsed();
         let mut cur_collision: collision::Collision = cur_node.collisions[0];
         let mut attempt_bypass = true;
