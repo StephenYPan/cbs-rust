@@ -1,7 +1,7 @@
 use crate::datatype::{cardinal, collision, constraint, edge, mdd, vertex};
 use crate::single_agent::{astar, dijkstra};
 use std::cmp::max;
-use std::collections::{hash_map::DefaultHasher, BinaryHeap, HashMap};
+use std::collections::{hash_map::DefaultHasher, BinaryHeap, HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 use std::time::Instant;
 
@@ -208,21 +208,27 @@ fn bypass_collisions(
 fn detect_cardinal_conflicts(node: &mut Node) {
     let mut conflict_index: Vec<usize> = Vec::new();
     let mut conflicts: Vec<collision::Collision> = Vec::new();
+
+    let mut mdd_hashes: HashMap<usize, u64> = HashMap::new();
+    let agents: HashSet<usize> = node
+        .collisions
+        .iter()
+        .flat_map(|c| vec![c.a1 as usize, c.a2 as usize])
+        .collect();
+    for i in agents.iter() {
+        let mut state = DefaultHasher::new();
+        for layer in &node.mdds[*i].mdd {
+            layer.hash(&mut state);
+        }
+        let hash = state.finish();
+        mdd_hashes.insert(*i, hash);
+    }
+
     for (i, collision) in node.collisions.iter_mut().enumerate() {
         let a1 = collision.a1 as usize;
         let a2 = collision.a2 as usize;
+        let joint_mdd_hash = mdd_hashes[&a1] ^ mdd_hashes[&a2];
 
-        let mut state = DefaultHasher::new();
-        for layer in &node.mdds[a1].mdd {
-            layer.hash(&mut state);
-        }
-        let mdd1_hash = state.finish();
-        let mut state = DefaultHasher::new();
-        for layer in &node.mdds[a2].mdd {
-            layer.hash(&mut state);
-        }
-        let mdd2_hash = state.finish();
-        let joint_mdd_hash = mdd1_hash ^ mdd2_hash;
         if let Some(cardinal_conflict) = mdd::find_cardinal_conflict(
             &node.mdds[a1],
             &node.mdds[a2],
