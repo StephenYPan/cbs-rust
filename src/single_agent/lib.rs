@@ -10,7 +10,7 @@ const ACTION: [(i32, i32); 5] = [
 
 /// Size of tuple is (i32, i32) to avoid the edge case where
 /// units in the vertex::Vertex (u16, u16) is between 2^15 and 2^16-1.
-pub fn get_next_loc(loc: vertex::Vertex, action: usize) -> Option<vertex::Vertex> {
+pub const fn get_next_loc(loc: vertex::Vertex, action: usize) -> Option<vertex::Vertex> {
     let dir = ACTION[action];
     let x = loc.1 as i32 + dir.1;
     let y = loc.0 as i32 + dir.0;
