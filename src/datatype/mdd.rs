@@ -1,4 +1,3 @@
-#![allow(unused)]
 use crate::datatype::{cardinal, collision, constraint, edge, vertex};
 use crate::single_agent::dijkstra;
 use std::cmp::min;
@@ -8,9 +7,6 @@ use std::hash::{Hash, Hasher};
 use cached::proc_macro::cached;
 use cached::SizedCache;
 // use rayon::prelude::*;
-
-const MDD_CACHE_SIZE: usize = 1000;
-const PARTIAL_MDD_CACHE_SIZE: usize = 1000;
 
 #[derive(Debug, Eq, Clone)]
 pub struct Mdd {
@@ -61,12 +57,20 @@ impl Mdd {
     }
 }
 
-// TODO: Cache with hash of collision
+const CARDINAL_CACHE: usize = 1000;
+
+#[cached(
+    type = "SizedCache<u64, Option<collision::Collision>>",
+    create = "{ SizedCache::with_size(CARDINAL_CACHE) }",
+    convert = "{ _hash }",
+    sync_writes = true
+)]
 pub fn find_cardinal_conflict(
     mdd1: &Mdd,
     mdd2: &Mdd,
     agent1: u8,
     agent2: u8,
+    _hash: u64,
 ) -> Option<collision::Collision> {
     // Find the first cardinal conflicts and return it.
     let min_timestep = min(mdd1.mdd.len(), mdd2.mdd.len());
@@ -100,12 +104,18 @@ pub fn find_cardinal_conflict(
     find_extended_mdd_conflict(mdd1, mdd2, agent1, agent2)
 }
 
-// TODO: Cache with hash of collision
+#[cached(
+    type = "SizedCache<u64, Option<collision::Collision>>",
+    create = "{ SizedCache::with_size(CARDINAL_CACHE) }",
+    convert = "{ _hash }",
+    sync_writes = true
+)]
 pub fn find_dependency_conflict(
     mdd1: &Mdd,
     mdd2: &Mdd,
     agent1: u8,
     agent2: u8,
+    _hash: u64,
 ) -> Option<collision::Collision> {
     // Find all the dependency conflicts return the last one.
     let mut joint_mdd: HashSet<(usize, vertex::Vertex, vertex::Vertex)> = HashSet::new();
@@ -181,6 +191,8 @@ fn find_extended_mdd_conflict(
     }
     None
 }
+
+const MDD_CACHE_SIZE: usize = 1000;
 
 #[cached(
     type = "SizedCache<(vertex::Vertex, usize, u64), Vec<Vec<edge::Edge>>>",
@@ -285,6 +297,8 @@ fn build_mdd(
     mdd.shrink_to_fit();
     mdd
 }
+
+const PARTIAL_MDD_CACHE_SIZE: usize = 1000;
 
 #[cached(
     type = "SizedCache<(vertex::Vertex, vertex::Vertex, u16), Vec<Vec<edge::Edge>>>",

@@ -5,7 +5,7 @@ use std::collections::{BinaryHeap, HashMap};
 use cached::proc_macro::cached;
 use cached::SizedCache;
 
-const CACHE_SIZE: usize = 25;
+const CACHE_SIZE: usize = 100;
 
 pub fn get_next_loc(
     map: &[Vec<u8>],
