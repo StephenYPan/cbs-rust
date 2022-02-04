@@ -61,6 +61,7 @@ impl Mdd {
     }
 }
 
+// TODO: Cache with hash of collision
 pub fn find_cardinal_conflict(
     mdd1: &Mdd,
     mdd2: &Mdd,
@@ -99,6 +100,7 @@ pub fn find_cardinal_conflict(
     find_extended_mdd_conflict(mdd1, mdd2, agent1, agent2)
 }
 
+// TODO: Cache with hash of collision
 pub fn find_dependency_conflict(
     mdd1: &Mdd,
     mdd2: &Mdd,

@@ -210,6 +210,7 @@ fn detect_cardinal_conflicts(node: &mut Node) {
     for (i, collision) in node.collisions.iter_mut().enumerate() {
         let a1 = collision.a1 as usize;
         let a2 = collision.a2 as usize;
+        // TODO: Hash collision for cache
         if let Some(cardinal_conflict) =
             mdd::find_cardinal_conflict(&node.mdds[a1], &node.mdds[a2], a1 as u8, a2 as u8)
         {
@@ -322,23 +323,24 @@ pub fn cbs(
         // attempt to bypass when there are no more cardinal and semi-cardinal conflicts.
         detect_cardinal_conflicts(&mut cur_node);
         let mut cur_collision: collision::Collision = cur_node.collisions[0];
-        let mut is_bypass = true;
+        let mut attempt_bypass = true;
         for collision in &cur_node.collisions {
             match collision.conflict {
                 cardinal::Cardinal::Full => {
+                    // TODO: How do you increase the cost of both agents?
                     cur_collision = *collision;
-                    is_bypass = false;
+                    attempt_bypass = false;
                     break;
                 }
                 cardinal::Cardinal::Semi => {
                     cur_collision = *collision;
-                    is_bypass = false;
+                    attempt_bypass = false;
                     break;
                 }
-                cardinal::Cardinal::None => {}
+                cardinal::Cardinal::Non => {}
             }
         }
-        if is_bypass {
+        if attempt_bypass {
             match bypass_collisions(&mut cur_node, map, &starts, &goals, &h_values) {
                 Some(collision) => cur_collision = collision,
                 None => {
@@ -379,7 +381,7 @@ pub fn cbs(
                         new_paths[constraint_agent].len() - 1
                     }
                 }
-                cardinal::Cardinal::None => 0,
+                cardinal::Cardinal::Non => 0,
             };
             match astar::astar(
                 map,
