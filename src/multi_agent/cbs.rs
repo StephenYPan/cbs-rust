@@ -1,7 +1,8 @@
 use crate::datatype::{cardinal, collision, constraint, edge, mdd, vertex};
 use crate::single_agent::{astar, dijkstra};
 use std::cmp::max;
-use std::collections::{BinaryHeap, HashMap};
+use std::collections::{hash_map::DefaultHasher, BinaryHeap, HashMap};
+use std::hash::{Hash, Hasher};
 use std::time::Instant;
 
 // use rayon::prelude::*;
@@ -210,17 +211,36 @@ fn detect_cardinal_conflicts(node: &mut Node) {
     for (i, collision) in node.collisions.iter_mut().enumerate() {
         let a1 = collision.a1 as usize;
         let a2 = collision.a2 as usize;
-        // TODO: Hash collision for cache
-        if let Some(cardinal_conflict) =
-            mdd::find_cardinal_conflict(&node.mdds[a1], &node.mdds[a2], a1 as u8, a2 as u8)
-        {
+
+        let mut state = DefaultHasher::new();
+        for layer in &node.mdds[a1].mdd {
+            layer.hash(&mut state);
+        }
+        let mdd1_hash = state.finish();
+        let mut state = DefaultHasher::new();
+        for layer in &node.mdds[a2].mdd {
+            layer.hash(&mut state);
+        }
+        let mdd2_hash = state.finish();
+        let joint_mdd_hash = mdd1_hash ^ mdd2_hash;
+        if let Some(cardinal_conflict) = mdd::find_cardinal_conflict(
+            &node.mdds[a1],
+            &node.mdds[a2],
+            a1 as u8,
+            a2 as u8,
+            joint_mdd_hash,
+        ) {
             conflict_index.push(i);
             conflicts.push(cardinal_conflict);
             continue;
         }
-        if let Some(semi_cardinal_conflict) =
-            mdd::find_dependency_conflict(&node.mdds[a1], &node.mdds[a2], a1 as u8, a2 as u8)
-        {
+        if let Some(semi_cardinal_conflict) = mdd::find_dependency_conflict(
+            &node.mdds[a1],
+            &node.mdds[a2],
+            a1 as u8,
+            a2 as u8,
+            joint_mdd_hash,
+        ) {
             conflict_index.push(i);
             conflicts.push(semi_cardinal_conflict);
             continue;
@@ -239,6 +259,8 @@ pub fn cbs(
     disjoint: bool,
 ) -> Option<Vec<Vec<vertex::Vertex>>> {
     let now = Instant::now();
+    let mut mdd_time: std::time::Duration = std::time::Duration::new(0, 0);
+    let mut col_time: std::time::Duration = std::time::Duration::new(0, 0);
 
     let num_agents = starts.len();
     let mut h_values: Vec<HashMap<vertex::Vertex, u16>> = Vec::with_capacity(num_agents);
@@ -268,7 +290,9 @@ pub fn cbs(
             Some(path) => root_paths.push(path),
             None => return None, // No solution
         };
+        let mdd_now = Instant::now();
         root_mdds.push(mdd::Mdd::new(map, &root_paths[i], &agent_constraints));
+        mdd_time += mdd_now.elapsed();
     }
 
     let root_constraints: Vec<constraint::Constraint> = match constraints {
@@ -310,6 +334,8 @@ pub fn cbs(
             // Solution found
             let elapsed_time = now.elapsed();
             println!("CPU time: {:?}", elapsed_time);
+            println!("Mdd time: {:?}", mdd_time);
+            println!("Car time: {:?}", col_time);
             println!("Cost: {}", cur_node.g_val);
             println!("Nodes expanded:  {}", pop_counter);
             println!("Nodes generated: {}", push_counter);
@@ -321,7 +347,9 @@ pub fn cbs(
 
         // Improved cbs: Always split on cardinal or semi-cardinal conflicts, then
         // attempt to bypass when there are no more cardinal and semi-cardinal conflicts.
+        let col_now = Instant::now();
         detect_cardinal_conflicts(&mut cur_node);
+        col_time += col_now.elapsed();
         let mut cur_collision: collision::Collision = cur_node.collisions[0];
         let mut attempt_bypass = true;
         for collision in &cur_node.collisions {
@@ -395,8 +423,10 @@ pub fn cbs(
                 None => continue, // New constraint yields no solution
             };
             // Update mdd given the new constraints
+            let mdd_now = Instant::now();
             new_mdds[constraint_agent] =
                 mdd::Mdd::new(map, &new_paths[constraint_agent], &agent_constraints);
+            mdd_time += mdd_now.elapsed();
 
             // Check for positive constraint
             if new_constraint.is_positive {
@@ -440,11 +470,13 @@ pub fn cbs(
                         }
                     };
                     // update agent's mdd
+                    let mdd_now = Instant::now();
                     new_mdds[violating_agent] = mdd::Mdd::new(
                         map,
                         &new_paths[violating_agent],
                         &violating_agent_constraints,
                     );
+                    mdd_time += mdd_now.elapsed();
                 }
                 if invalid_pos_constraint {
                     // Positive constraint yields no solution
