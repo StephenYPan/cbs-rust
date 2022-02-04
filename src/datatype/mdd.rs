@@ -181,9 +181,9 @@ fn find_extended_mdd_conflict(
 }
 
 #[cached(
-    type = "SizedCache<(usize, vertex::Vertex, u64), Vec<Vec<edge::Edge>>>",
+    type = "SizedCache<(vertex::Vertex, usize, u64), Vec<Vec<edge::Edge>>>",
     create = "{ SizedCache::with_size(MDD_CACHE_SIZE) }",
-    convert = "{ ( path.len(), path[0], _hash) }",
+    convert = "{ (path[0], path.len(), _hash) }",
     sync_writes = true
 )]
 fn build_mdd(

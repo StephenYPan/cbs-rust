@@ -288,8 +288,8 @@ pub fn cbs(
         root_mdds,
     );
 
-    let mut pop_counter = 0;
-    let mut push_counter = 0;
+    let mut pop_counter: usize = 0;
+    let mut push_counter: usize = 0;
 
     let mut open_list: BinaryHeap<Node> = BinaryHeap::new();
     open_list.push(root);
@@ -372,7 +372,7 @@ pub fn cbs(
                 cardinal::Cardinal::Full => new_paths[constraint_agent].len(),
                 cardinal::Cardinal::Semi => {
                     // Force the agent to increase its path length by 1 in cases where constraint
-                    // is negative. In positive cases the agent path len will stay the same.
+                    // is negative. In positive cases the agent path length will stay the same.
                     if !new_constraint.is_positive {
                         new_paths[constraint_agent].len()
                     } else {
