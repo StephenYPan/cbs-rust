@@ -44,21 +44,19 @@ impl Mdd {
         constraints.hash(&mut state);
         let hash = state.finish();
         let mdd = build_mdd(map, path, constraints, hash);
-        // Mdd must be 1 less the path length.
-        assert!(mdd.len() == path.len() - 1, "Mdd length != path length");
-        // Mdd must contain the path edges.
-        for (timestep, edge) in path.iter().zip(&path[1..]).enumerate() {
-            assert!(
-                &mdd[timestep]
-                    .iter()
-                    .any(|e| e.0 == *edge.0 && e.1 == *edge.1),
-                "path edge: {:?} at t={} not in mdd[{}]: {:?}",
-                edge,
-                timestep,
-                timestep,
-                mdd[timestep]
-            );
-        }
+        // // Mdd must contain the path edges.
+        // for (timestep, edge) in path.iter().zip(&path[1..]).enumerate() {
+        //     assert!(
+        //         &mdd[timestep]
+        //             .iter()
+        //             .any(|e| e.0 == *edge.0 && e.1 == *edge.1),
+        //         "path edge: {:?} at t={} not in mdd[{}]: {:?}",
+        //         edge,
+        //         timestep,
+        //         timestep,
+        //         mdd[timestep]
+        //     );
+        // }
         Mdd { mdd }
     }
 }
@@ -280,7 +278,6 @@ fn build_mdd(
         }
     }
     for v in &mut mdd {
-        assert!(!v.is_empty());
         v.shrink_to_fit();
     }
     mdd.shrink_to_fit();
