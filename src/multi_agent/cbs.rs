@@ -1,4 +1,4 @@
-use crate::datatype::{collision, constraint, edge, mdd, vertex};
+use crate::datatype::{collision, conflict, constraint, edge, mdd, vertex};
 use crate::single_agent::{astar, dijkstra};
 use std::cmp::max;
 use std::collections::{BinaryHeap, HashMap};
@@ -23,7 +23,7 @@ fn detect_collisions(paths: &[Vec<vertex::Vertex>]) -> Vec<collision::Collision>
     let mut collisions = Vec::new();
     let num_agents = paths.len();
     for i in 0..num_agents {
-        for j in i + 1..num_agents {
+        for j in (i + 1)..num_agents {
             for t in 1..max(paths[i].len(), paths[j].len()) {
                 let cur_loc1 = get_location(&paths[i], t);
                 let cur_loc2 = get_location(&paths[j], t);
@@ -36,6 +36,7 @@ fn detect_collisions(paths: &[Vec<vertex::Vertex>]) -> Vec<collision::Collision>
                         j as u8,
                         constraint::Location::new(cur_loc1),
                         t as u16,
+                        conflict::Conflict::default(),
                     ));
                     break;
                 }
@@ -46,6 +47,7 @@ fn detect_collisions(paths: &[Vec<vertex::Vertex>]) -> Vec<collision::Collision>
                         j as u8,
                         constraint::Location::new(edge::Edge(cur_loc2, cur_loc1)),
                         t as u16,
+                        conflict::Conflict::default(),
                     ));
                     break;
                 }
@@ -60,15 +62,39 @@ fn standard_split(collision: &collision::Collision) -> Vec<constraint::Constrain
     match collision.loc {
         constraint::Location::Vertex(_) => {
             vec![
-                constraint::Constraint::new(collision.a1, collision.loc, collision.timestep, false),
-                constraint::Constraint::new(collision.a2, collision.loc, collision.timestep, false),
+                constraint::Constraint::new(
+                    collision.a1,
+                    collision.loc,
+                    collision.timestep,
+                    false,
+                    collision.conflict,
+                ),
+                constraint::Constraint::new(
+                    collision.a2,
+                    collision.loc,
+                    collision.timestep,
+                    false,
+                    collision.conflict,
+                ),
             ]
         }
         constraint::Location::Edge(edge) => {
             let reversed_edge = constraint::Location::new(edge::Edge(edge.1, edge.0));
             vec![
-                constraint::Constraint::new(collision.a1, collision.loc, collision.timestep, false),
-                constraint::Constraint::new(collision.a2, reversed_edge, collision.timestep, false),
+                constraint::Constraint::new(
+                    collision.a1,
+                    collision.loc,
+                    collision.timestep,
+                    false,
+                    collision.conflict,
+                ),
+                constraint::Constraint::new(
+                    collision.a2,
+                    reversed_edge,
+                    collision.timestep,
+                    false,
+                    collision.conflict,
+                ),
             ]
         }
     }
@@ -86,6 +112,7 @@ fn disjoint_split(collision: &collision::Collision) -> Vec<constraint::Constrain
     result[other_idx].agent = random_agent;
     result[other_idx].loc = random_loc;
     result[other_idx].is_positive = true;
+    result[other_idx].conflict = conflict::Conflict::default();
     result
 }
 
@@ -147,6 +174,7 @@ fn bypass_collisions(
                 &goals[agent],
                 &h_values[agent],
                 &agent_constraints,
+                node.paths[agent].len() - 1,
             ) {
                 Some(path) => {
                     // Edit path iff new path is same length as old path
@@ -171,6 +199,34 @@ fn bypass_collisions(
         None // Found solution
     } else {
         Some(node.collisions[0])
+    }
+}
+
+/// Mutates the input vector of collisions by replacing the collisions
+/// with cardinal or semi-cardinal collisions if applicable.
+fn detect_cardinal_conflicts(node: &mut Node) {
+    let mut conflict_index: Vec<usize> = Vec::new();
+    let mut conflicts: Vec<collision::Collision> = Vec::new();
+    for (i, collision) in node.collisions.iter_mut().enumerate() {
+        let a1 = collision.a1 as usize;
+        let a2 = collision.a2 as usize;
+        if let Some(cardinal_conflict) =
+            mdd::find_cardinal_conflict(&node.mdds[a1], &node.mdds[a2], a1 as u8, a2 as u8)
+        {
+            conflict_index.push(i);
+            conflicts.push(cardinal_conflict);
+            continue;
+        }
+        if let Some(semi_cardinal_conflict) =
+            mdd::find_dependency_conflict(&node.mdds[a1], &node.mdds[a2], a1 as u8, a2 as u8)
+        {
+            conflict_index.push(i);
+            conflicts.push(semi_cardinal_conflict);
+            continue;
+        }
+    }
+    for (i, c) in conflict_index.iter().zip(conflicts) {
+        node.collisions[*i] = c;
     }
 }
 
@@ -200,7 +256,14 @@ pub fn cbs(
                 .collect(),
             None => Vec::new(),
         };
-        match astar::astar(map, &starts[i], &goals[i], &h_values[i], &agent_constraints) {
+        match astar::astar(
+            map,
+            &starts[i],
+            &goals[i],
+            &h_values[i],
+            &agent_constraints,
+            0,
+        ) {
             Some(path) => root_paths.push(path),
             None => return None, // No solution
         };
@@ -235,13 +298,13 @@ pub fn cbs(
     while !open_list.is_empty() {
         let mut cur_node = open_list.pop().unwrap();
         pop_counter += 1;
-        // println!(
-        //     "pop: [f-val: {}, g-val: {}, h-val: {}, num_col: {}]",
-        //     cur_node.g_val + cur_node.h_val,
-        //     cur_node.g_val,
-        //     cur_node.h_val,
-        //     cur_node.collisions.len()
-        // );
+        println!(
+            "pop: [f-val: {}, g-val: {}, h-val: {}, num_col: {}]",
+            cur_node.g_val + cur_node.h_val,
+            cur_node.g_val,
+            cur_node.h_val,
+            cur_node.collisions.len()
+        );
         if cur_node.collisions.is_empty() {
             // Solution found
             let elapsed_time = now.elapsed();
@@ -257,44 +320,25 @@ pub fn cbs(
 
         // Improved cbs: Always split on cardinal or semi-cardinal conflicts, then
         // attempt to bypass when there are no more cardinal and semi-cardinal conflicts.
+        detect_cardinal_conflicts(&mut cur_node);
         let mut cur_collision: collision::Collision = cur_node.collisions[0];
-        let mut is_semi_or_cardinal_conflict = false;
-        for c in &cur_node.collisions {
-            let a1 = c.a1 as usize;
-            let a2 = c.a2 as usize;
-            if let Some(cardinal_conflict) = mdd::find_cardinal_conflict(
-                &cur_node.mdds[a1],
-                &cur_node.mdds[a2],
-                a1 as u8,
-                a2 as u8,
-            ) {
-                cur_collision = cardinal_conflict;
-                is_semi_or_cardinal_conflict = true;
-                break;
+        let mut is_bypass = true;
+        for collision in &cur_node.collisions {
+            match collision.conflict {
+                conflict::Conflict::Cardinal => {
+                    cur_collision = *collision;
+                    is_bypass = false;
+                    break;
+                }
+                conflict::Conflict::SemiCardinal => {
+                    cur_collision = *collision;
+                    is_bypass = false;
+                    break;
+                }
+                _ => {}
             }
-            // FIXME: How to force the path to increase cost?
-            // The current code will split on the last dependency conflict
-            // but the path length will still maintain the same. The agent
-            // will adjust the path and new conflicts will occur. This will
-            // repeat until the agent runs out of possible moves and is
-            // forced to increase path cost.
-            // if let Some(semi_cardinal_conflict) = mdd::find_dependency_conflict(
-            //     &cur_node.mdds[a1],
-            //     &cur_node.mdds[a2],
-            //     a1 as u8,
-            //     a2 as u8,
-            // ) {
-            //     // cur_collision = semi_cardinal_conflict;
-            //     // is_semi_or_cardinal_conflict = true;
-            //     println!("{:?}", cur_node.paths[a1]);
-            //     println!("{:?}", cur_node.paths[a2]);
-            //     println!("{:?}", cur_node.constraints);
-            //     println!("{:?}\n", semi_cardinal_conflict);
-            //     break;
-            // }
         }
-        if !is_semi_or_cardinal_conflict {
-            // Attempt bypass to reduce number of collisions
+        if is_bypass {
             match bypass_collisions(&mut cur_node, map, &starts, &goals, &h_values) {
                 Some(collision) => cur_collision = collision,
                 None => {
@@ -304,6 +348,7 @@ pub fn cbs(
                 }
             };
         }
+
         let new_constraints = if disjoint {
             disjoint_split(&cur_collision)
         } else {
@@ -311,8 +356,10 @@ pub fn cbs(
         };
         for new_constraint in new_constraints {
             let constraint_agent = new_constraint.agent as usize;
-            let mut new_constraints: Vec<constraint::Constraint> = vec![new_constraint];
+            let mut new_constraints: Vec<constraint::Constraint> = Vec::new();
             new_constraints.extend(&cur_node.constraints);
+            new_constraints.push(new_constraint);
+
             let mut new_mdds: Vec<mdd::Mdd> = Vec::with_capacity(num_agents);
             new_mdds.clone_from(&cur_node.mdds); // Clone parent, edits will not overwrite parent.
 
@@ -322,12 +369,18 @@ pub fn cbs(
                 .copied()
                 .collect();
             let mut new_paths = cur_node.paths.clone();
+            let min_path_length = match new_constraint.conflict {
+                conflict::Conflict::Cardinal => new_paths[constraint_agent].len(),
+                conflict::Conflict::SemiCardinal => new_paths[constraint_agent].len(),
+                conflict::Conflict::NonCardinal => 0,
+            };
             match astar::astar(
                 map,
                 &starts[constraint_agent],
                 &goals[constraint_agent],
                 &h_values[constraint_agent],
                 &agent_constraints,
+                min_path_length,
             ) {
                 Some(p) => new_paths[constraint_agent] = p,
                 None => continue, // New constraint yields no solution
@@ -354,6 +407,7 @@ pub fn cbs(
                         loc,
                         new_constraint.timestep,
                         false,
+                        conflict::Conflict::default(),
                     ));
                     let violating_agent_constraints: Vec<constraint::Constraint> = new_constraints
                         .iter() // parallelize iter
@@ -366,6 +420,7 @@ pub fn cbs(
                         &goals[violating_agent],
                         &h_values[violating_agent],
                         &violating_agent_constraints,
+                        0,
                     ) {
                         Some(p) => {
                             new_paths[violating_agent] = p;
@@ -388,6 +443,7 @@ pub fn cbs(
                 }
             }
 
+            new_constraints.shrink_to_fit();
             let new_collisions = detect_collisions(&new_paths);
             let new_g_val = get_sum_cost(&new_paths);
             let new_h_val = 0;
@@ -401,7 +457,6 @@ pub fn cbs(
                 new_collisions,
                 new_mdds,
             );
-
             open_list.push(new_node);
             push_counter += 1;
         }
