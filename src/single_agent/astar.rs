@@ -153,7 +153,8 @@ impl Tree {
     }
 
     fn get_node_idx(&self, node: Node) -> usize {
-        *self.duplicate_node.get(&(node.loc, node.timestep)).unwrap()
+        // *self.duplicate_node.get(&(node.loc, node.timestep)).unwrap()
+        self.duplicate_node[&(node.loc, node.timestep)]
     }
 
     /// Runtime is O(c) where c is the path length.
