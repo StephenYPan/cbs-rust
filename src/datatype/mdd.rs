@@ -44,8 +44,6 @@ impl Mdd {
         constraints.hash(&mut state);
         let hash = state.finish();
         let mdd = build_mdd(map, path, constraints, hash);
-        // Mdd must be 1 less the path length.
-        assert!(mdd.len() == path.len() - 1, "Mdd length != path length");
         // Mdd must contain the path edges.
         for (timestep, edge) in path.iter().zip(&path[1..]).enumerate() {
             assert!(
@@ -182,12 +180,12 @@ fn find_extended_mdd_conflict(
     None
 }
 
-// #[cached(
-//     type = "SizedCache<(usize, vertex::Vertex, u64), Vec<Vec<edge::Edge>>>",
-//     create = "{ SizedCache::with_size(MDD_CACHE_SIZE) }",
-//     convert = "{ ( path.len(), path[0], _hash) }",
-//     sync_writes = true
-// )]
+#[cached(
+    type = "SizedCache<(usize, vertex::Vertex, u64), Vec<Vec<edge::Edge>>>",
+    create = "{ SizedCache::with_size(MDD_CACHE_SIZE) }",
+    convert = "{ ( path.len(), path[0], _hash) }",
+    sync_writes = true
+)]
 fn build_mdd(
     map: &[Vec<u8>],
     path: &[vertex::Vertex],
@@ -280,7 +278,6 @@ fn build_mdd(
         }
     }
     for v in &mut mdd {
-        assert!(!v.is_empty());
         v.shrink_to_fit();
     }
     mdd.shrink_to_fit();
