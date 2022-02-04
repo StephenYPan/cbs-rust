@@ -1,4 +1,4 @@
-use crate::datatype::{collision, conflict, constraint, edge, mdd, vertex};
+use crate::datatype::{cardinal, collision, constraint, edge, mdd, vertex};
 use crate::single_agent::{astar, dijkstra};
 use std::cmp::max;
 use std::collections::{BinaryHeap, HashMap};
@@ -36,7 +36,7 @@ fn detect_collisions(paths: &[Vec<vertex::Vertex>]) -> Vec<collision::Collision>
                         j as u8,
                         constraint::Location::new(cur_loc1),
                         t as u16,
-                        conflict::Conflict::default(),
+                        cardinal::Cardinal::default(),
                     ));
                     break;
                 }
@@ -47,7 +47,7 @@ fn detect_collisions(paths: &[Vec<vertex::Vertex>]) -> Vec<collision::Collision>
                         j as u8,
                         constraint::Location::new(edge::Edge(cur_loc2, cur_loc1)),
                         t as u16,
-                        conflict::Conflict::default(),
+                        cardinal::Cardinal::default(),
                     ));
                     break;
                 }
@@ -112,7 +112,7 @@ fn disjoint_split(collision: &collision::Collision) -> Vec<constraint::Constrain
     result[other_idx].agent = random_agent;
     result[other_idx].loc = random_loc;
     result[other_idx].is_positive = true;
-    result[other_idx].conflict = conflict::Conflict::SemiCardinal;
+    result[other_idx].conflict = cardinal::Cardinal::Semi;
     result
 }
 
@@ -325,12 +325,12 @@ pub fn cbs(
         let mut is_bypass = true;
         for collision in &cur_node.collisions {
             match collision.conflict {
-                conflict::Conflict::Cardinal => {
+                cardinal::Cardinal::Full => {
                     cur_collision = *collision;
                     is_bypass = false;
                     break;
                 }
-                conflict::Conflict::SemiCardinal => {
+                cardinal::Cardinal::Semi => {
                     cur_collision = *collision;
                     is_bypass = false;
                     break;
@@ -369,8 +369,8 @@ pub fn cbs(
                 .collect();
             let mut new_paths = cur_node.paths.clone();
             let min_path_length = match new_constraint.conflict {
-                conflict::Conflict::Cardinal => new_paths[constraint_agent].len(),
-                conflict::Conflict::SemiCardinal => {
+                cardinal::Cardinal::Full => new_paths[constraint_agent].len(),
+                cardinal::Cardinal::Semi => {
                     // Force the agent to increase its path length by 1 in cases where constraint
                     // is negative. In positive cases the agent path len will stay the same.
                     if !new_constraint.is_positive {
@@ -379,7 +379,7 @@ pub fn cbs(
                         new_paths[constraint_agent].len() - 1
                     }
                 }
-                conflict::Conflict::NonCardinal => 0,
+                cardinal::Cardinal::None => 0,
             };
             match astar::astar(
                 map,
@@ -414,7 +414,7 @@ pub fn cbs(
                         loc,
                         new_constraint.timestep,
                         false,
-                        conflict::Conflict::default(),
+                        cardinal::Cardinal::default(),
                     ));
                     let violating_agent_constraints: Vec<constraint::Constraint> = new_constraints
                         .iter() // parallelize iter

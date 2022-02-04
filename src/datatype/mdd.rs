@@ -1,5 +1,5 @@
 #![allow(unused)]
-use crate::datatype::{collision, conflict, constraint, edge, vertex};
+use crate::datatype::{cardinal, collision, constraint, edge, vertex};
 use crate::single_agent::dijkstra;
 use std::cmp::min;
 use std::collections::{hash_map::DefaultHasher, HashSet};
@@ -81,7 +81,7 @@ pub fn find_cardinal_conflict(
                 agent2,
                 constraint::Location::new(edge1),
                 (i + 1) as u16,
-                conflict::Conflict::Cardinal,
+                cardinal::Cardinal::Full,
             ));
         }
         let vertex1: HashSet<vertex::Vertex> = layer1.iter().map(|edge| edge.1).collect();
@@ -92,7 +92,7 @@ pub fn find_cardinal_conflict(
                 agent2,
                 constraint::Location::new(layer1[0].1),
                 (i + 1) as u16,
-                conflict::Conflict::Cardinal,
+                cardinal::Cardinal::Full,
             ));
         }
     }
@@ -139,7 +139,7 @@ pub fn find_dependency_conflict(
                 agent2,
                 dependency_conflict,
                 (i + 1) as u16,
-                conflict::Conflict::SemiCardinal,
+                cardinal::Cardinal::Semi,
             ));
         }
     }
@@ -173,7 +173,7 @@ fn find_extended_mdd_conflict(
                 agent2,
                 constraint::Location::new(other_vertex),
                 (start_time + i + 1) as u16,
-                conflict::Conflict::Cardinal,
+                cardinal::Cardinal::Full,
             ));
         }
     }

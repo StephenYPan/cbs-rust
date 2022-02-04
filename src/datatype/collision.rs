@@ -1,4 +1,4 @@
-use crate::datatype::{conflict, constraint};
+use crate::datatype::{cardinal, constraint};
 use std::fmt;
 
 #[derive(Eq, Copy, Clone)]
@@ -7,7 +7,7 @@ pub struct Collision {
     pub a2: u8,
     pub loc: constraint::Location,
     pub timestep: u16,
-    pub conflict: conflict::Conflict,
+    pub conflict: cardinal::Cardinal,
 }
 
 impl PartialEq for Collision {
@@ -22,7 +22,7 @@ impl Collision {
         a2: u8,
         loc: constraint::Location,
         timestep: u16,
-        conflict: conflict::Conflict,
+        conflict: cardinal::Cardinal,
     ) -> Collision {
         Collision {
             a1,

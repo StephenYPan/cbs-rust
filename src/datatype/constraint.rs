@@ -1,4 +1,4 @@
-use crate::datatype::{conflict, edge, vertex};
+use crate::datatype::{cardinal, edge, vertex};
 use std::fmt;
 use std::hash::{Hash, Hasher};
 
@@ -55,7 +55,7 @@ pub struct Constraint {
     pub is_edge: bool,
     pub timestep: u16,
     pub is_positive: bool,
-    pub conflict: conflict::Conflict,
+    pub conflict: cardinal::Cardinal,
 }
 
 impl PartialEq for Constraint {
@@ -82,7 +82,7 @@ impl Constraint {
         loc: Location,
         timestep: u16,
         is_positive: bool,
-        conflict: conflict::Conflict,
+        conflict: cardinal::Cardinal,
     ) -> Constraint {
         let location = match loc {
             Location::Vertex(v) => (edge::Edge(vertex::Vertex(0, 0), v), false),
