@@ -102,6 +102,8 @@ fn standard_split(collision: &collision::Collision) -> Vec<constraint::Constrain
 
 fn disjoint_split(collision: &collision::Collision) -> Vec<constraint::Constraint> {
     let mut result = standard_split(collision);
+    result[0].conflict = conflict::Conflict::default();
+    result[1].conflict = conflict::Conflict::default();
     // TODO: Convert this to a deterministic picking method
     // Pick a random agent.
     let random_idx = (Instant::now().elapsed().as_nanos() % 2) as usize;
@@ -112,7 +114,6 @@ fn disjoint_split(collision: &collision::Collision) -> Vec<constraint::Constrain
     result[other_idx].agent = random_agent;
     result[other_idx].loc = random_loc;
     result[other_idx].is_positive = true;
-    result[other_idx].conflict = conflict::Conflict::default();
     result
 }
 
@@ -348,7 +349,6 @@ pub fn cbs(
                 }
             };
         }
-
         let new_constraints = if disjoint {
             disjoint_split(&cur_collision)
         } else {
