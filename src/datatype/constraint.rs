@@ -1,8 +1,8 @@
-use crate::datatype::{edge, vertex};
+use crate::datatype::{conflict, edge, vertex};
 use std::fmt;
 use std::hash::{Hash, Hasher};
 
-#[derive(Eq, PartialEq, Copy, Clone)]
+#[derive(PartialEq, Eq, Copy, Clone)]
 pub enum Location {
     Vertex(vertex::Vertex),
     Edge(edge::Edge),
@@ -55,6 +55,7 @@ pub struct Constraint {
     pub is_edge: bool,
     pub timestep: u16,
     pub is_positive: bool,
+    pub conflict: conflict::Conflict,
 }
 
 impl PartialEq for Constraint {
@@ -76,7 +77,13 @@ impl Hash for Constraint {
 }
 
 impl Constraint {
-    pub fn new(agent: u8, loc: Location, timestep: u16, is_positive: bool) -> Constraint {
+    pub fn new(
+        agent: u8,
+        loc: Location,
+        timestep: u16,
+        is_positive: bool,
+        conflict: conflict::Conflict,
+    ) -> Constraint {
         let location = match loc {
             Location::Vertex(v) => (edge::Edge(vertex::Vertex(0, 0), v), false),
             Location::Edge(e) => (e, true),
@@ -87,6 +94,7 @@ impl Constraint {
             is_edge: location.1,
             timestep,
             is_positive,
+            conflict,
         }
     }
 }
