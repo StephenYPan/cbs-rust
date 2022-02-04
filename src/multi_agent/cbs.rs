@@ -335,7 +335,7 @@ pub fn cbs(
                     is_bypass = false;
                     break;
                 }
-                _ => {}
+                cardinal::Cardinal::None => {}
             }
         }
         if is_bypass {
