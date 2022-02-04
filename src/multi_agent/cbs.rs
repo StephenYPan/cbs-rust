@@ -112,7 +112,7 @@ fn disjoint_split(collision: &collision::Collision) -> Vec<constraint::Constrain
     result[other_idx].agent = random_agent;
     result[other_idx].loc = random_loc;
     result[other_idx].is_positive = true;
-    result[other_idx].conflict = conflict::Conflict::default();
+    result[other_idx].conflict = conflict::Conflict::SemiCardinal;
     result
 }
 
