@@ -1,5 +1,6 @@
 use crate::datatype::{constraint, edge, vertex};
 use crate::single_agent::dijkstra;
+use std::cmp::max;
 use std::collections::{BinaryHeap, HashMap, HashSet};
 
 /// Return true if the action is a negative constraint, otherwise false.
@@ -42,14 +43,18 @@ pub fn astar(
     goal_loc: &vertex::Vertex,
     h_values: &HashMap<vertex::Vertex, u16>,
     constraints: &[constraint::Constraint],
+    min_path_length: usize,
 ) -> Option<Vec<vertex::Vertex>> {
     let mut open_list: BinaryHeap<Node> = BinaryHeap::new();
     let mut tree = Tree::new();
 
-    let min_path_len = constraints
-        .iter()
-        .filter(|c| !c.is_positive)
-        .fold(0, |acc, c| acc.max(c.timestep));
+    let min_path_length = max(
+        min_path_length as u16,
+        constraints
+            .iter()
+            .filter(|c| !c.is_positive)
+            .fold(0, |acc, c| acc.max(c.timestep)),
+    );
     let neg_constraints: HashSet<(edge::Edge, bool, u16)> = constraints
         .iter()
         .filter(|c| !c.is_positive)
@@ -67,7 +72,7 @@ pub fn astar(
     while !open_list.is_empty() {
         let cur_node = open_list.pop().unwrap();
         let cur_idx = tree.get_node_idx(cur_node);
-        if cur_node.timestep >= min_path_len && cur_node.loc == *goal_loc {
+        if cur_node.timestep >= min_path_length && cur_node.loc == *goal_loc {
             return Some(tree.get_path(cur_idx));
         }
         for action in 0..5 {
