@@ -330,7 +330,7 @@ pub fn cbs(
         let mut cur_node = open_list.pop().unwrap();
         pop_counter += 1;
         println!(
-            "pop: [f-val: {:2}, g-val: {:2}, h-val: {:2}, num_col: {:2}]",
+            "pop: [f-val: {}, g-val: {}, h-val: {}, num_col: {:2}]",
             cur_node.g_val + cur_node.h_val,
             cur_node.g_val,
             cur_node.h_val,
@@ -339,9 +339,9 @@ pub fn cbs(
         if cur_node.collisions.is_empty() {
             // Solution found
             let elapsed_time = now.elapsed();
-            println!("CPU time: {:?}", elapsed_time);
+            println!("\nCPU time: {:?}", elapsed_time);
             println!("Mdd time: {:?}", mdd_time);
-            println!("Car time: {:?}", col_time);
+            println!("Col time: {:?}", col_time);
             println!("Cost: {}", cur_node.g_val);
             println!("Nodes expanded:  {}", pop_counter);
             println!("Nodes generated: {}", push_counter);
@@ -361,7 +361,6 @@ pub fn cbs(
         for collision in &cur_node.collisions {
             match collision.conflict {
                 cardinal::Cardinal::Full => {
-                    // TODO: How do you increase the cost of both agents?
                     cur_collision = *collision;
                     attempt_bypass = false;
                     break;
