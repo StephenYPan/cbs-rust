@@ -43,8 +43,10 @@ impl Mdd {
         let mut state = DefaultHasher::new();
         constraints.hash(&mut state);
         let hash = state.finish();
-        let mdd = build_mdd(map, path, constraints, path[0], hash);
-        // assert the mdd contains the path edges
+        let mdd = build_mdd(map, path, constraints, hash);
+        // Mdd must be 1 less the path length.
+        assert!(mdd.len() == path.len() - 1, "Mdd length != path length");
+        // Mdd must contain the path edges.
         for (timestep, edge) in path.iter().zip(&path[1..]).enumerate() {
             assert!(
                 &mdd[timestep]
@@ -180,23 +182,22 @@ fn find_extended_mdd_conflict(
     None
 }
 
-#[cached(
-    type = "SizedCache<(vertex::Vertex, u64), Vec<Vec<edge::Edge>>>",
-    create = "{ SizedCache::with_size(MDD_CACHE_SIZE) }",
-    convert = "{ (_start_loc, _hash) }",
-    sync_writes = true
-)]
+// #[cached(
+//     type = "SizedCache<(usize, vertex::Vertex, u64), Vec<Vec<edge::Edge>>>",
+//     create = "{ SizedCache::with_size(MDD_CACHE_SIZE) }",
+//     convert = "{ ( path.len(), path[0], _hash) }",
+//     sync_writes = true
+// )]
 fn build_mdd(
     map: &[Vec<u8>],
     path: &[vertex::Vertex],
     constraints: &[constraint::Constraint],
-    _start_loc: vertex::Vertex,
     _hash: u64,
 ) -> Vec<Vec<edge::Edge>> {
     let mut mdd = Vec::with_capacity(path.len() - 1);
     // use positive to generate partial mdd
     let path_len = path.len() as u16;
-    let mut pos_constraints: Vec<(u16, vertex::Vertex)> = constraints
+    let mut pos_constraints: HashSet<(u16, vertex::Vertex)> = constraints
         .iter()
         .filter(|c| c.is_positive && c.timestep < path_len)
         .flat_map(|c| match c.is_edge {
@@ -204,11 +205,13 @@ fn build_mdd(
             false => vec![(c.timestep, c.loc.1)],
         })
         .collect();
-    pos_constraints.push((0, path[0]));
-    pos_constraints.push((path_len - 1, *path.last().unwrap()));
-    pos_constraints.sort_by_key(|c| c.0);
+    pos_constraints.insert((0, path[0]));
+    pos_constraints.insert((path_len - 1, *path.last().unwrap()));
+    let mut intermediate_goals: Vec<(u16, vertex::Vertex)> =
+        pos_constraints.iter().copied().collect();
+    intermediate_goals.sort_by_key(|c| c.0);
     // Generate partial mdds using the intermediate goal nodes
-    for (start, goal) in pos_constraints.iter().zip(&pos_constraints[1..]) {
+    for (start, goal) in intermediate_goals.iter().zip(&intermediate_goals[1..]) {
         // return value of build_partial_mdd extended by mdd to maintain order of edges.
         let max_cost = goal.0 - start.0;
         let partial_mdd: Vec<Vec<edge::Edge>> = build_partial_mdd(map, start.1, goal.1, max_cost);
@@ -228,6 +231,19 @@ fn build_mdd(
         // Early exit.
         return mdd;
     }
+
+    // for c in constraints.iter().filter(|c| !c.is_positive) {
+    //     println!("{:?}", c);
+    // }
+    // println!();
+    // println!("Path: {:?}", path);
+
+    // for layer in &mdd {
+    //     println!("{:?}", layer);
+    // }
+    // println!();
+
+    // FIXME: THERE IS A BUG SOMEWHERE IN THE CODE BELOW. SOMETIMES MDD IS NONE.
     for (timestep, constraint) in neg_constraints {
         match constraint {
             constraint::Location::Edge(edge) => {
@@ -235,9 +251,8 @@ fn build_mdd(
                 mdd[(timestep - 1) as usize].retain(|e| *e != edge)
             }
             constraint::Location::Vertex(vertex) => {
-                // Remove all edges going to and from vertex
+                // Remove all edges going to vertex
                 mdd[(timestep - 1) as usize].retain(|e| e.1 != vertex);
-                mdd[timestep as usize].retain(|e| e.0 != vertex);
             }
         }
     }
@@ -278,6 +293,7 @@ fn build_mdd(
         }
     }
     for v in &mut mdd {
+        assert!(!v.is_empty());
         v.shrink_to_fit();
     }
     mdd.shrink_to_fit();
