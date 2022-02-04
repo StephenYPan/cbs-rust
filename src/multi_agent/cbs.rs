@@ -299,7 +299,7 @@ pub fn cbs(
         let mut cur_node = open_list.pop().unwrap();
         pop_counter += 1;
         println!(
-            "pop: [f-val: {}, g-val: {}, h-val: {}, num_col: {}]",
+            "pop: [f-val: {:2}, g-val: {:2}, h-val: {:2}, num_col: {:2}]",
             cur_node.g_val + cur_node.h_val,
             cur_node.g_val,
             cur_node.h_val,
