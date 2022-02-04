@@ -370,8 +370,16 @@ pub fn cbs(
             let mut new_paths = cur_node.paths.clone();
             let min_path_length = match new_constraint.conflict {
                 conflict::Conflict::Cardinal => new_paths[constraint_agent].len(),
-                conflict::Conflict::SemiCardinal => new_paths[constraint_agent].len() - 1,
-                _ => 0,
+                conflict::Conflict::SemiCardinal => {
+                    // Force the agent to increase its path length by 1 in cases where constraint
+                    // is negative. In positive cases the agent path len will stay the same.
+                    if !new_constraint.is_positive {
+                        new_paths[constraint_agent].len()
+                    } else {
+                        new_paths[constraint_agent].len() - 1
+                    }
+                }
+                conflict::Conflict::NonCardinal => 0,
             };
             match astar::astar(
                 map,
