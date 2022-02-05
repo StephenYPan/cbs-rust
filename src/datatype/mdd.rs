@@ -1,4 +1,4 @@
-use crate::datatype::{cardinal, collision, constraint, edge, vertex};
+use crate::datatype::{cardinal, collision, constraint, edge, lib, vertex};
 use crate::single_agent::dijkstra;
 use std::cmp::min;
 use std::collections::{hash_map::DefaultHasher, HashSet};
@@ -8,11 +8,13 @@ use cached::proc_macro::cached;
 use cached::SizedCache;
 // use rayon::prelude::*;
 
+// TODO: Add hash value to mdd
 #[derive(Debug, Eq, Clone)]
 pub struct Mdd {
     pub mdd: Vec<Vec<edge::Edge>>,
 }
 
+// TODO: Change to compare hash
 impl PartialEq for Mdd {
     fn eq(&self, other: &Self) -> bool {
         if self.mdd.len() != other.mdd.len() {
@@ -36,10 +38,7 @@ impl Mdd {
         path: &[vertex::Vertex],
         constraints: &[constraint::Constraint],
     ) -> Mdd {
-        let mut state = DefaultHasher::new();
-        constraints.hash(&mut state);
-        let hash = state.finish();
-        let mdd = build_mdd(map, path, constraints, hash);
+        let mdd = build_mdd(map, path, constraints);
         // Mdd must contain the path edges.
         for (timestep, edge) in path.iter().zip(&path[1..]).enumerate() {
             assert!(
@@ -197,14 +196,13 @@ const MDD_CACHE_SIZE: usize = 1000;
 #[cached(
     type = "SizedCache<(vertex::Vertex, usize, u64), Vec<Vec<edge::Edge>>>",
     create = "{ SizedCache::with_size(MDD_CACHE_SIZE) }",
-    convert = "{ (path[0], path.len(), _hash) }",
+    convert = "{ (path[0], path.len(), lib::hash(constraints)) }",
     sync_writes = true
 )]
 fn build_mdd(
     map: &[Vec<u8>],
     path: &[vertex::Vertex],
     constraints: &[constraint::Constraint],
-    _hash: u64,
 ) -> Vec<Vec<edge::Edge>> {
     let mut mdd = Vec::with_capacity(path.len() - 1);
     // use positive to generate partial mdd
@@ -317,14 +315,14 @@ fn build_partial_mdd(
     let goal_h_val = dijkstra::compute_heuristics(map, goal);
     let valid_locations: Vec<(vertex::Vertex, u16)> = start_h_val
         .iter() // parallelize iter(?)
-        .filter(|(k, v)| **v + *goal_h_val.get(k).unwrap() <= max_cost)
+        .filter(|(k, v)| *v + goal_h_val[k] <= max_cost)
         .map(|(k, v)| (*k, *v))
         .collect();
     for t in 0..max_cost {
         let mut partial_mdd_timestep_t: Vec<edge::Edge> = Vec::new();
         let start_locations: Vec<vertex::Vertex> = valid_locations
             .iter()
-            .filter(|(v, h_val)| *h_val <= t && t + *goal_h_val.get(v).unwrap() <= max_cost)
+            .filter(|(v, h_val)| *h_val <= t && t + goal_h_val[v] <= max_cost)
             .map(|(v, _)| *v)
             .collect();
         for cur_loc in start_locations {
@@ -333,7 +331,7 @@ fn build_partial_mdd(
                     Some(vertex) => vertex,
                     None => continue,
                 };
-                if t + 1 + *goal_h_val.get(&next_loc).unwrap() > max_cost {
+                if t + 1 + goal_h_val[&next_loc] > max_cost {
                     continue;
                 }
                 partial_mdd_timestep_t.push(edge::Edge(cur_loc, next_loc));

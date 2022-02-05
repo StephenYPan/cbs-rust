@@ -66,7 +66,7 @@ pub fn astar(
         .map(|c| ((c.timestep, c.is_edge), c.loc))
         .collect();
 
-    let root_h_val = *h_values.get(start_loc).unwrap();
+    let root_h_val = h_values[start_loc];
     open_list.push(tree.add_node(*start_loc, 0, root_h_val, 0, 0).unwrap());
 
     while !open_list.is_empty() {
@@ -90,7 +90,7 @@ pub fn astar(
             match tree.add_node(
                 next_loc,
                 cur_node.g_val + 1,
-                *h_values.get(&next_loc).unwrap(),
+                h_values[&next_loc],
                 next_t,
                 cur_idx,
             ) {
