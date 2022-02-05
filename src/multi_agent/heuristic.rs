@@ -1,4 +1,5 @@
-use crate::datatype::{cardinal, collision, mdd};
+use crate::datatype::{cardinal, collision};
+use crate::multi_agent::mdd;
 use std::cmp::min;
 
 fn is_vertex_cover(graph: &[Vec<u8>], num_vertices: usize, num_edges: usize, k: usize) -> bool {
@@ -10,7 +11,7 @@ fn is_vertex_cover(graph: &[Vec<u8>], num_vertices: usize, num_edges: usize, k: 
         let mut k = 1;
         let mut i = 0;
         while k < limit {
-            if (set & k) == 1 {
+            if (set & k) > 0 {
                 for j in 0..num_vertices {
                     if visited[i][j] != graph[i][j] {
                         continue;
