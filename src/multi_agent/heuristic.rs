@@ -27,7 +27,8 @@ fn is_vertex_cover(graph: &[Vec<u8>], num_vertices: usize, num_edges: usize, k: 
             return true;
         }
         // Gosper's hack
-        // Cycle through all permutations of vertices to find a valid vertex cover.
+        // Cycle through all permutations of bit ordering
+        // to find an ordering that is a vertex cover.
         let c = set & -set;
         let r = set + c;
         set = (((r ^ set) >> 2) / c) | r;
@@ -36,7 +37,10 @@ fn is_vertex_cover(graph: &[Vec<u8>], num_vertices: usize, num_edges: usize, k: 
 }
 
 fn calc_min_vertex_cover(graph: Vec<Vec<u8>>, num_vertices: usize, num_edges: usize) -> u16 {
-    let mut low = 1; // Minimum number of vertices as a vertex cover if there are at least 1 edge
+    if num_edges <= 1 {
+        return num_edges as u16;
+    }
+    let mut low = 1; // Lower bound for for minimum vertex cover
     let mut high = min(num_edges + 1, num_vertices);
     while low < high {
         let mid = (low + high) >> 1;
@@ -63,9 +67,6 @@ pub fn cg_heuristic(collisions: &[collision::Collision], mdds: &[mdd::Mdd]) -> u
         graph[a2][a1] = 1;
         num_edges += 1;
     }
-    if num_edges <= 1 {
-        return num_edges as u16;
-    }
     calc_min_vertex_cover(graph, num_vertices, num_edges)
 }
 
@@ -82,9 +83,6 @@ pub fn dg_heuristic(collisions: &[collision::Collision], mdds: &[mdd::Mdd]) -> u
         graph[a1][a2] = 1;
         graph[a2][a1] = 1;
         num_edges += 1;
-    }
-    if num_edges <= 1 {
-        return num_edges as u16;
     }
     calc_min_vertex_cover(graph, num_vertices, num_edges)
 }
