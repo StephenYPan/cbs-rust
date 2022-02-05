@@ -18,6 +18,21 @@ struct Args {
     /// Turn on disjoint split
     #[clap(short, long)]
     disjoint: bool,
+
+    /// Turn on conflict graph heuristic
+    #[clap(short, long)]
+    cg: bool,
+
+    /// Turn on dependency graph heuristic
+    #[clap(short, long)]
+    dg: bool,
+
+    /// Turn on weighted dependency graph heuristic
+    #[clap(short, long)]
+    wdg: bool,
+    // /// Turn on heuristic(s): cg, dg, and/or wdg
+    // #[clap(short, long, multiple_values = true)]
+    // heuristics: Vec<heuristic::Heuristic>,
 }
 
 fn main() {
@@ -28,6 +43,8 @@ fn main() {
     let starts = map_instance.starts;
     let goals = map_instance.goals;
 
+    let heuristics: Vec<bool> = vec![args.cg, args.dg, args.wdg];
+
     // for r in &map {
     //     println!("{:?}", r);
     // }
@@ -35,7 +52,7 @@ fn main() {
     // println!("{:?}", goals);
     // println!();
 
-    let paths = cbs::cbs(&map, starts, goals, None, args.disjoint);
+    let paths = cbs::cbs(&map, starts, goals, None, args.disjoint, heuristics);
     match paths {
         Some(_paths) => {}
         None => println!("No solution."),

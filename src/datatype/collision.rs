@@ -8,7 +8,7 @@ pub struct Collision {
     pub a2: u8,
     pub loc: constraint::Location,
     pub timestep: u16,
-    pub conflict: cardinal::Cardinal,
+    pub cardinal: cardinal::Cardinal,
 }
 
 impl PartialEq for Collision {
@@ -23,14 +23,14 @@ impl Collision {
         a2: u8,
         loc: constraint::Location,
         timestep: u16,
-        conflict: cardinal::Cardinal,
+        cardinal: cardinal::Cardinal,
     ) -> Collision {
         Collision {
             a1,
             a2,
             loc,
             timestep,
-            conflict,
+            cardinal,
         }
     }
 }
@@ -42,7 +42,7 @@ impl fmt::Debug for Collision {
             .field("a2", &self.a2)
             .field("loc", &self.loc)
             .field("timestep", &self.timestep)
-            .field("conflict", &self.conflict)
+            .field("conflict", &self.cardinal)
             .finish()
     }
 }

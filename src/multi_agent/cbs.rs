@@ -1,8 +1,8 @@
 use crate::datatype::{cardinal, collision, constraint, edge, mdd, vertex};
+use crate::multi_agent::{heuristic, lib};
 use crate::single_agent::{astar, dijkstra};
 use std::cmp::max;
-use std::collections::{hash_map::DefaultHasher, BinaryHeap, HashMap, HashSet};
-use std::hash::{Hash, Hasher};
+use std::collections::{BinaryHeap, HashMap};
 use std::time::Instant;
 
 // use rayon::prelude::*;
@@ -20,7 +20,10 @@ fn get_location(path: &[vertex::Vertex], timestep: usize) -> vertex::Vertex {
     }
 }
 
-fn detect_collisions(paths: &[Vec<vertex::Vertex>]) -> Vec<collision::Collision> {
+fn detect_collisions(
+    paths: &[Vec<vertex::Vertex>],
+    mdds: Option<&[mdd::Mdd]>,
+) -> Vec<collision::Collision> {
     let mut collisions = Vec::new();
     let num_agents = paths.len();
     for i in 0..num_agents {
@@ -55,6 +58,9 @@ fn detect_collisions(paths: &[Vec<vertex::Vertex>]) -> Vec<collision::Collision>
             }
         }
     }
+    if let Some(mdds) = mdds {
+        lib::detect_cardinal_conflicts(&mut collisions, mdds);
+    }
     collisions.shrink_to_fit();
     collisions
 }
@@ -68,14 +74,14 @@ fn standard_split(collision: &collision::Collision) -> Vec<constraint::Constrain
                     collision.loc,
                     collision.timestep,
                     false,
-                    collision.conflict,
+                    collision.cardinal,
                 ),
                 constraint::Constraint::new(
                     collision.a2,
                     collision.loc,
                     collision.timestep,
                     false,
-                    collision.conflict,
+                    collision.cardinal,
                 ),
             ]
         }
@@ -87,14 +93,14 @@ fn standard_split(collision: &collision::Collision) -> Vec<constraint::Constrain
                     collision.loc,
                     collision.timestep,
                     false,
-                    collision.conflict,
+                    collision.cardinal,
                 ),
                 constraint::Constraint::new(
                     collision.a2,
                     reversed_edge,
                     collision.timestep,
                     false,
-                    collision.conflict,
+                    collision.cardinal,
                 ),
             ]
         }
@@ -113,7 +119,6 @@ fn disjoint_split(collision: &collision::Collision) -> Vec<constraint::Constrain
     result[other_idx].agent = random_agent;
     result[other_idx].loc = random_loc;
     result[other_idx].is_positive = true;
-    result[other_idx].conflict = cardinal::Cardinal::Semi;
     result
 }
 
@@ -183,7 +188,7 @@ fn bypass_collisions(
                     if node.paths[agent].len() == path.len() {
                         let mut new_paths = node.paths.clone();
                         new_paths[agent] = path.clone();
-                        let new_num_collisions = detect_collisions(&new_paths).len();
+                        let new_num_collisions = detect_collisions(&new_paths, None).len();
                         if new_num_collisions < num_collisions {
                             node.paths[agent] = path;
                             num_collisions = new_num_collisions;
@@ -194,57 +199,12 @@ fn bypass_collisions(
             };
         }
     }
-    node.collisions = detect_collisions(&node.paths);
+    node.collisions = detect_collisions(&node.paths, None);
     node.g_val = get_sum_cost(&node.paths);
     if node.collisions.is_empty() {
         None // Found solution
     } else {
         Some(node.collisions[0])
-    }
-}
-
-/// Mutates the input vector of collisions by replacing the collisions
-/// with cardinal or semi-cardinal collisions if applicable.
-fn detect_cardinal_conflicts(collisions: &mut [collision::Collision], mdds: &[mdd::Mdd]) {
-    let mut conflict_index: Vec<usize> = Vec::new();
-    let mut conflicts: Vec<collision::Collision> = Vec::new();
-
-    let mut mdd_hashes: HashMap<usize, u64> = HashMap::new();
-    let agents: HashSet<usize> = collisions
-        .iter()
-        .flat_map(|c| vec![c.a1 as usize, c.a2 as usize])
-        .collect();
-    for i in agents.iter() {
-        let mut state = DefaultHasher::new();
-        for layer in &mdds[*i].mdd {
-            layer.hash(&mut state);
-        }
-        let hash = state.finish();
-        mdd_hashes.insert(*i, hash);
-    }
-
-    for (i, collision) in collisions.iter().enumerate() {
-        let a1 = collision.a1 as usize;
-        let a2 = collision.a2 as usize;
-        let joint_mdd_hash = mdd_hashes[&a1] ^ mdd_hashes[&a2];
-
-        if let Some(cardinal_conflict) =
-            mdd::find_cardinal_conflict(&mdds[a1], &mdds[a2], a1 as u8, a2 as u8, joint_mdd_hash)
-        {
-            conflict_index.push(i);
-            conflicts.push(cardinal_conflict);
-            continue;
-        }
-        if let Some(semi_cardinal_conflict) =
-            mdd::find_dependency_conflict(&mdds[a1], &mdds[a2], a1 as u8, a2 as u8, joint_mdd_hash)
-        {
-            conflict_index.push(i);
-            conflicts.push(semi_cardinal_conflict);
-            continue;
-        }
-    }
-    for (i, c) in conflict_index.iter().zip(conflicts) {
-        collisions[*i] = c;
     }
 }
 
@@ -254,10 +214,10 @@ pub fn cbs(
     goals: Vec<vertex::Vertex>,
     constraints: Option<Vec<constraint::Constraint>>,
     disjoint: bool,
+    heuristics: Vec<bool>,
 ) -> Option<Vec<Vec<vertex::Vertex>>> {
     let now = Instant::now();
     let mut mdd_time: std::time::Duration = std::time::Duration::new(0, 0);
-    let mut col_time: std::time::Duration = std::time::Duration::new(0, 0);
 
     let num_agents = starts.len();
     let mut h_values: Vec<HashMap<vertex::Vertex, u16>> = Vec::with_capacity(num_agents);
@@ -296,7 +256,7 @@ pub fn cbs(
         Some(constraints) => constraints,
         None => Vec::new(),
     };
-    let root_collisions = detect_collisions(&root_paths);
+    let root_collisions = detect_collisions(&root_paths, Some(&root_mdds));
     let root_g_val = get_sum_cost(&root_paths);
     let root_h_val = 0;
 
@@ -332,7 +292,6 @@ pub fn cbs(
             let elapsed_time = now.elapsed();
             println!("\nCPU time: {:?}", elapsed_time);
             println!("Mdd time: {:?}", mdd_time);
-            println!("Col time: {:?}", col_time);
             println!("Cost: {}", cur_node.g_val);
             println!("Nodes expanded:  {}", pop_counter);
             println!("Nodes generated: {}", push_counter);
@@ -344,19 +303,11 @@ pub fn cbs(
 
         // Improved cbs: Always split on cardinal or semi-cardinal conflicts, then
         // attempt to bypass when there are no more cardinal and semi-cardinal conflicts.
-        let col_now = Instant::now();
-        detect_cardinal_conflicts(&mut cur_node.collisions, &cur_node.mdds);
-        col_time += col_now.elapsed();
         let mut cur_collision: collision::Collision = cur_node.collisions[0];
         let mut attempt_bypass = true;
         for collision in &cur_node.collisions {
-            match collision.conflict {
-                cardinal::Cardinal::Full => {
-                    cur_collision = *collision;
-                    attempt_bypass = false;
-                    break;
-                }
-                cardinal::Cardinal::Semi => {
+            match collision.cardinal {
+                cardinal::Cardinal::Full | cardinal::Cardinal::Semi => {
                     cur_collision = *collision;
                     attempt_bypass = false;
                     break;
@@ -395,8 +346,7 @@ pub fn cbs(
                 .collect();
             let mut new_paths = cur_node.paths.clone();
             let min_path_length = match new_constraint.conflict {
-                cardinal::Cardinal::Full => new_paths[constraint_agent].len(),
-                cardinal::Cardinal::Semi => {
+                cardinal::Cardinal::Full | cardinal::Cardinal::Semi => {
                     // Force the agent to increase its path length by 1 in cases where constraint
                     // is negative. In positive cases the agent path length will stay the same.
                     if !new_constraint.is_positive {
@@ -481,7 +431,7 @@ pub fn cbs(
             }
 
             new_constraints.shrink_to_fit();
-            let new_collisions = detect_collisions(&new_paths);
+            let new_collisions = detect_collisions(&new_paths, Some(&new_mdds));
             let new_g_val = get_sum_cost(&new_paths);
             let new_h_val = 0;
 
