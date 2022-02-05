@@ -1,5 +1,5 @@
-use crate::datatype::{cardinal, collision, constraint, edge, mdd, vertex};
-use crate::multi_agent::{heuristic, lib};
+use crate::datatype::{cardinal, collision, constraint, edge, location, vertex};
+use crate::multi_agent::{heuristic, lib, mdd};
 use crate::single_agent::{astar, dijkstra};
 use std::cmp::max;
 use std::collections::{BinaryHeap, HashMap};
@@ -38,7 +38,7 @@ fn detect_collisions(
                     collisions.push(collision::Collision::new(
                         i as u8,
                         j as u8,
-                        constraint::Location::new(cur_loc1),
+                        location::Location::new(cur_loc1),
                         t as u16,
                         cardinal::Cardinal::default(),
                     ));
@@ -49,7 +49,7 @@ fn detect_collisions(
                     collisions.push(collision::Collision::new(
                         i as u8,
                         j as u8,
-                        constraint::Location::new(edge::Edge(cur_loc2, cur_loc1)),
+                        location::Location::new(edge::Edge(cur_loc2, cur_loc1)),
                         t as u16,
                         cardinal::Cardinal::default(),
                     ));
@@ -67,7 +67,7 @@ fn detect_collisions(
 
 fn standard_split(collision: &collision::Collision) -> Vec<constraint::Constraint> {
     match collision.loc {
-        constraint::Location::Vertex(_) => {
+        location::Location::Vertex(_) => {
             vec![
                 constraint::Constraint::new(
                     collision.a1,
@@ -85,8 +85,8 @@ fn standard_split(collision: &collision::Collision) -> Vec<constraint::Constrain
                 ),
             ]
         }
-        constraint::Location::Edge(edge) => {
-            let reversed_edge = constraint::Location::new(edge::Edge(edge.1, edge.0));
+        location::Location::Edge(edge) => {
+            let reversed_edge = location::Location::new(edge::Edge(edge.1, edge.0));
             vec![
                 constraint::Constraint::new(
                     collision.a1,
@@ -345,7 +345,7 @@ pub fn cbs(
                 .copied()
                 .collect();
             let mut new_paths = cur_node.paths.clone();
-            let min_path_length = match new_constraint.conflict {
+            let min_path_length = match new_constraint.cardinal {
                 cardinal::Cardinal::Full | cardinal::Cardinal::Semi => {
                     // Force the agent to increase its path length by 1 in cases where constraint
                     // is negative. In positive cases the agent path length will stay the same.
@@ -377,13 +377,10 @@ pub fn cbs(
             // Check for positive constraint
             if new_constraint.is_positive {
                 let violating_agents = paths_violating_pos_constraint(&new_constraint, &new_paths);
-                let loc: constraint::Location = if !new_constraint.is_edge {
-                    constraint::Location::new(new_constraint.loc.1)
+                let loc: location::Location = if !new_constraint.is_edge {
+                    location::Location::new(new_constraint.loc.1)
                 } else {
-                    constraint::Location::new(edge::Edge(
-                        new_constraint.loc.1,
-                        new_constraint.loc.0,
-                    ))
+                    location::Location::new(edge::Edge(new_constraint.loc.1, new_constraint.loc.0))
                 };
                 let mut invalid_pos_constraint = false;
                 for violating_agent in violating_agents {
@@ -466,12 +463,8 @@ pub struct Node {
 impl PartialEq for Node {
     fn eq(&self, other: &Self) -> bool {
         if self.g_val.eq(&other.g_val) {
-            let paths: Vec<vertex::Vertex> =
-                self.paths.iter().flat_map(|v| v.iter()).copied().collect();
-            let other_paths: Vec<vertex::Vertex> =
-                other.paths.iter().flat_map(|v| v.iter()).copied().collect();
-            for (v1, v2) in paths.iter().zip(other_paths.iter()) {
-                if *v1 != *v2 {
+            for (p1, p2) in self.paths.iter().zip(&other.paths) {
+                if lib::hash(p1) != lib::hash(p2) {
                     return false;
                 }
             }

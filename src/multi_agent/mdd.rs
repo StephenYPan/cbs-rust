@@ -1,4 +1,5 @@
-use crate::datatype::{cardinal, collision, constraint, edge, lib, vertex};
+use crate::datatype::{cardinal, collision, constraint, edge, location, vertex};
+use crate::multi_agent::lib;
 use crate::single_agent::dijkstra;
 use std::cmp::min;
 use std::collections::{hash_map::DefaultHasher, HashSet};
@@ -83,7 +84,7 @@ pub fn find_cardinal_conflict(
             return Some(collision::Collision::new(
                 agent1,
                 agent2,
-                constraint::Location::new(edge1),
+                location::Location::new(edge1),
                 (i + 1) as u16,
                 cardinal::Cardinal::Full,
             ));
@@ -94,7 +95,7 @@ pub fn find_cardinal_conflict(
             return Some(collision::Collision::new(
                 agent1,
                 agent2,
-                constraint::Location::new(layer1[0].1),
+                location::Location::new(layer1[0].1),
                 (i + 1) as u16,
                 cardinal::Cardinal::Full,
             ));
@@ -119,7 +120,7 @@ pub fn find_dependency_conflict(
     // Find all the dependency conflicts return the last one.
     let mut joint_mdd: HashSet<(usize, vertex::Vertex, vertex::Vertex)> = HashSet::new();
     joint_mdd.insert((0, mdd1.mdd[0][0].0, mdd2.mdd[0][0].0));
-    let mut dependency_conflict = constraint::Location::default();
+    let mut dependency_conflict = location::Location::default();
     let min_timestep = min(mdd1.mdd.len(), mdd2.mdd.len());
     for i in 0..min_timestep {
         let layer1 = &mdd1.mdd[i];
@@ -132,12 +133,12 @@ pub fn find_dependency_conflict(
                 }
                 if edge1.1 == edge2.1 {
                     // Vertex dependency conflict
-                    dependency_conflict = constraint::Location::new(edge1.1);
+                    dependency_conflict = location::Location::new(edge1.1);
                     continue;
                 }
                 if edge1.0 == edge2.1 && edge1.1 == edge2.0 {
                     // Edge dependency conflict
-                    dependency_conflict = constraint::Location::new(*edge1);
+                    dependency_conflict = location::Location::new(*edge1);
                     continue;
                 }
                 joint_mdd.insert((i + 1, edge1.1, edge2.1));
@@ -182,7 +183,7 @@ fn find_extended_mdd_conflict(
             return Some(collision::Collision::new(
                 agent1,
                 agent2,
-                constraint::Location::new(other_vertex),
+                location::Location::new(other_vertex),
                 (start_time + i + 1) as u16,
                 cardinal::Cardinal::Full,
             ));
@@ -228,12 +229,12 @@ fn build_mdd(
         mdd.extend(partial_mdd); // partial_mdd is moved and cannot be referenced again.
     }
     // use negative to filter the mdd
-    let neg_constraints: Vec<(u16, constraint::Location)> = constraints
+    let neg_constraints: Vec<(u16, location::Location)> = constraints
         .iter()
         .filter(|c| !c.is_positive)
         .map(|c| match c.is_edge {
-            true => (c.timestep, constraint::Location::new(c.loc)),
-            false => (c.timestep, constraint::Location::new(c.loc.1)),
+            true => (c.timestep, location::Location::new(c.loc)),
+            false => (c.timestep, location::Location::new(c.loc.1)),
         })
         .collect();
     // Remove edges from the mdd according to each negative edge.
@@ -243,11 +244,11 @@ fn build_mdd(
     }
     for (timestep, constraint) in neg_constraints {
         match constraint {
-            constraint::Location::Edge(edge) => {
+            location::Location::Edge(edge) => {
                 // Remove single edge
                 mdd[(timestep - 1) as usize].retain(|e| *e != edge)
             }
-            constraint::Location::Vertex(vertex) => {
+            location::Location::Vertex(vertex) => {
                 // Remove all edges going to vertex
                 mdd[(timestep - 1) as usize].retain(|e| e.1 != vertex);
             }

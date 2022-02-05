@@ -1,7 +1,20 @@
-use crate::datatype::{collision, mdd};
+use crate::datatype::collision;
+use crate::multi_agent::mdd;
 use std::collections::{hash_map::DefaultHasher, HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 
+/// Hash a vector and return the hash value.
+/// Hash value depends on the order of the elements.
+pub fn hash<T>(vec: &[T]) -> u64
+where
+    T: Hash,
+{
+    let mut state = DefaultHasher::new();
+    vec.hash(&mut state);
+    state.finish()
+}
+
+// TODO: Move this to mdd where mdd has a variable hash and store the hash value there.
 pub fn hash_mdds(collisions: &[collision::Collision], mdds: &[mdd::Mdd]) -> HashMap<usize, u64> {
     let mut mdd_hashes: HashMap<usize, u64> = HashMap::new();
     let agents: HashSet<usize> = collisions
@@ -20,6 +33,7 @@ pub fn hash_mdds(collisions: &[collision::Collision], mdds: &[mdd::Mdd]) -> Hash
     mdd_hashes
 }
 
+// TODO: Move this to cbs.rs and remove the hashing
 /// Mutates the input vector of collisions by replacing the collisions
 /// with cardinal or semi-cardinal collisions if applicable.
 pub fn detect_cardinal_conflicts(collisions: &mut [collision::Collision], mdds: &[mdd::Mdd]) {

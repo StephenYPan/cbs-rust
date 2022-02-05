@@ -1,9 +1,8 @@
-use crate::datatype::map_instance;
 use crate::datatype::vertex;
 use std::fs::File;
 use std::io::{self, BufRead};
 
-pub fn import_map_instance(filename: &str) -> Result<map_instance::MapInstance, std::io::Error> {
+pub fn import_map_instance(filename: &str) -> Result<MapInstance, std::io::Error> {
     let file = File::open(filename)?;
     let mut buff_reader = io::BufReader::new(file);
     let mut line = String::new();
@@ -45,5 +44,11 @@ pub fn import_map_instance(filename: &str) -> Result<map_instance::MapInstance, 
         starts.push(start);
         goals.push(goal);
     }
-    Ok(map_instance::MapInstance { map, starts, goals })
+    Ok(MapInstance { map, starts, goals })
+}
+
+pub struct MapInstance {
+    pub map: Vec<Vec<u8>>,
+    pub starts: Vec<vertex::Vertex>,
+    pub goals: Vec<vertex::Vertex>,
 }

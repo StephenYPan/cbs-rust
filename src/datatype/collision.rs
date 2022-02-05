@@ -1,7 +1,6 @@
 use crate::datatype::{cardinal, location};
 use std::fmt;
 
-// TODO: Hash collision by location and timestep
 #[derive(Eq, Copy, Clone)]
 pub struct Collision {
     pub a1: u8,
