@@ -1,4 +1,4 @@
-use crate::datatype::{cardinal, constraint};
+use crate::datatype::{cardinal, location};
 use std::fmt;
 
 // TODO: Hash collision by location and timestep
@@ -6,7 +6,7 @@ use std::fmt;
 pub struct Collision {
     pub a1: u8,
     pub a2: u8,
-    pub loc: constraint::Location,
+    pub loc: location::Location,
     pub timestep: u16,
     pub cardinal: cardinal::Cardinal,
 }
@@ -21,7 +21,7 @@ impl Collision {
     pub fn new(
         a1: u8,
         a2: u8,
-        loc: constraint::Location,
+        loc: location::Location,
         timestep: u16,
         cardinal: cardinal::Cardinal,
     ) -> Collision {

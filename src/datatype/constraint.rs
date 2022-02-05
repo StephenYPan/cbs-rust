@@ -1,52 +1,6 @@
-use crate::datatype::{cardinal, edge, vertex};
+use crate::datatype::{cardinal, edge, location, vertex};
 use std::fmt;
 use std::hash::{Hash, Hasher};
-
-#[derive(PartialEq, Eq, Copy, Clone)]
-pub enum Location {
-    Vertex(vertex::Vertex),
-    Edge(edge::Edge),
-}
-
-pub trait IntoLocation {
-    fn into(self) -> Location;
-}
-
-impl IntoLocation for vertex::Vertex {
-    fn into(self) -> Location {
-        Location::Vertex(self)
-    }
-}
-
-impl IntoLocation for edge::Edge {
-    fn into(self) -> Location {
-        Location::Edge(self)
-    }
-}
-
-impl Default for Location {
-    fn default() -> Self {
-        Location::Vertex(vertex::Vertex(0, 0))
-    }
-}
-
-impl Location {
-    pub fn new<L>(loc: L) -> Location
-    where
-        L: IntoLocation,
-    {
-        loc.into()
-    }
-}
-
-impl fmt::Debug for Location {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match *self {
-            Location::Vertex(v) => f.debug_tuple("").field(&v.0).field(&v.1).finish(),
-            Location::Edge(e) => f.debug_tuple("").field(&e.0).field(&e.1).finish(),
-        }
-    }
-}
 
 #[derive(Eq, Copy, Clone)]
 pub struct Constraint {
@@ -55,7 +9,7 @@ pub struct Constraint {
     pub is_edge: bool,
     pub timestep: u16,
     pub is_positive: bool,
-    pub conflict: cardinal::Cardinal,
+    pub cardinal: cardinal::Cardinal,
 }
 
 impl PartialEq for Constraint {
@@ -79,14 +33,14 @@ impl Hash for Constraint {
 impl Constraint {
     pub fn new(
         agent: u8,
-        loc: Location,
+        loc: location::Location,
         timestep: u16,
         is_positive: bool,
-        conflict: cardinal::Cardinal,
+        cardinal: cardinal::Cardinal,
     ) -> Constraint {
         let location = match loc {
-            Location::Vertex(v) => (edge::Edge(vertex::Vertex(0, 0), v), false),
-            Location::Edge(e) => (e, true),
+            location::Location::Vertex(v) => (edge::Edge(vertex::Vertex(0, 0), v), false),
+            location::Location::Edge(e) => (e, true),
         };
         Constraint {
             agent,
@@ -94,17 +48,17 @@ impl Constraint {
             is_edge: location.1,
             timestep,
             is_positive,
-            conflict,
+            cardinal,
         }
     }
 }
 
 impl fmt::Debug for Constraint {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let loc: Location = if self.is_edge {
-            Location::new(self.loc)
+        let loc: location::Location = if self.is_edge {
+            location::Location::new(self.loc)
         } else {
-            Location::new(self.loc.1)
+            location::Location::new(self.loc.1)
         };
         f.debug_struct("Constraint")
             .field("agent", &self.agent)
