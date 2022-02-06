@@ -16,19 +16,19 @@ struct Args {
     file: String,
 
     /// Turn on disjoint split
-    #[clap(short, long)]
+    #[clap(long)]
     disjoint: bool,
 
     /// Turn on conflict graph heuristic
-    #[clap(short, long)]
+    #[clap(long)]
     cg: bool,
 
     /// Turn on dependency graph heuristic
-    #[clap(short, long)]
+    #[clap(long)]
     dg: bool,
 
     /// Turn on weighted dependency graph heuristic
-    #[clap(short, long)]
+    #[clap(long)]
     wdg: bool,
 }
 
