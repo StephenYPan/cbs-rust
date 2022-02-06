@@ -1,0 +1,8 @@
+2 20
+. . . . . . . . . . . . . . . . . . . .
+@ @ @ @ @ @ . @ @ @ @ @ @ @ @ @ @ @ @ @
+2
+0 1 0 0
+0 0 0 1
+
+// Every right shift is a total path cost increase of 4

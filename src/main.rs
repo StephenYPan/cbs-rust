@@ -40,7 +40,7 @@ fn main() {
 
     let paths = cbs::cbs(&map_instance, None, false, args.disjoint, heuristics);
     match paths {
-        Some(_paths) => {}
+        Some(_) => {}
         None => println!("No solution."),
     }
 }
