@@ -2,6 +2,16 @@ use crate::datatype::{cardinal, collision};
 use crate::multi_agent::mdd;
 use std::cmp::min;
 
+/// Get next bit permutation of greater value from the given set.
+fn gospers_hack(set: i32) -> i32 {
+    // Gosper's hack
+    // Cycle through all permutations of bit ordering in increasing
+    // order to find an ordering that is a vertex cover.
+    let c = set & -set;
+    let r = set + c;
+    (((r ^ set) >> 2) / c) | r
+}
+
 fn is_vertex_cover(graph: &[Vec<u8>], num_vertices: usize, num_edges: usize, k: usize) -> bool {
     let mut set = (1 << k) - 1;
     let limit = 1 << num_vertices;
@@ -27,17 +37,12 @@ fn is_vertex_cover(graph: &[Vec<u8>], num_vertices: usize, num_edges: usize, k: 
         if num_edges_visited == num_edges {
             return true;
         }
-        // Gosper's hack
-        // Cycle through all permutations of bit ordering
-        // to find an ordering that is a vertex cover.
-        let c = set & -set;
-        let r = set + c;
-        set = (((r ^ set) >> 2) / c) | r;
+        set = gospers_hack(set);
     }
     false
 }
 
-fn calc_min_vertex_cover(graph: Vec<Vec<u8>>, num_vertices: usize, num_edges: usize) -> u16 {
+fn find_min_vertex_cover(graph: Vec<Vec<u8>>, num_vertices: usize, num_edges: usize) -> u16 {
     if num_edges <= 1 {
         return num_edges as u16;
     }
@@ -68,7 +73,7 @@ pub fn cg_heuristic(collisions: &[collision::Collision], mdds: &[mdd::Mdd]) -> u
         graph[a2][a1] = 1;
         num_edges += 1;
     }
-    calc_min_vertex_cover(graph, num_vertices, num_edges)
+    find_min_vertex_cover(graph, num_vertices, num_edges)
 }
 
 pub fn dg_heuristic(collisions: &[collision::Collision], mdds: &[mdd::Mdd]) -> u16 {
@@ -85,7 +90,41 @@ pub fn dg_heuristic(collisions: &[collision::Collision], mdds: &[mdd::Mdd]) -> u
         graph[a2][a1] = 1;
         num_edges += 1;
     }
-    calc_min_vertex_cover(graph, num_vertices, num_edges)
+    find_min_vertex_cover(graph, num_vertices, num_edges)
 }
 
-// pub fn wdg_heuristic(collisions: &[collision::Collision], mdds: &[mdd::Mdd]) {}
+#[allow(unused)]
+fn find_min_edge_weight_min_vertex_cover(
+    graph: Vec<Vec<u8>>,
+    num_vertices: usize,
+    num_edges: usize,
+) -> u16 {
+    // Gosper's hack
+    let mvc_set = find_min_vertex_cover(graph, num_vertices, num_edges);
+    0
+}
+
+pub fn wdg_heuristic(collisions: &[collision::Collision], mdds: &[mdd::Mdd]) -> u16 {
+    let num_vertices = mdds.len();
+    let mut num_edges: usize = 0;
+    let mut graph: Vec<Vec<u8>> = vec![vec![0; num_vertices]; num_vertices];
+    for collision in collisions {
+        if collision.cardinal == cardinal::Cardinal::Non {
+            continue;
+        }
+        let a1 = collision.a1 as usize;
+        let a2 = collision.a2 as usize;
+        // TODO: Find edge cost
+        // CBS params
+        // map: &[Vec<u8>],
+        // starts: Vec<vertex::Vertex>,
+        // goals: Vec<vertex::Vertex>,
+        // constraints: Option<Vec<constraint::Constraint>>,
+        // disjoint: bool,
+        // heuristics: Vec<bool>,
+        graph[a1][a2] = 1;
+        graph[a2][a1] = 1;
+        num_edges += 1;
+    }
+    find_min_edge_weight_min_vertex_cover(graph, num_vertices, num_edges)
+}

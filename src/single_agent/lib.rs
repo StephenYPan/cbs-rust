@@ -10,7 +10,7 @@ const ACTION: [(i32, i32); 5] = [
 
 /// Size of tuple is (i32, i32) to avoid the edge case where
 /// units in the vertex::Vertex (u16, u16) is between 2^15 and 2^16-1.
-pub const fn get_next_loc(loc: vertex::Vertex, action: usize) -> Option<vertex::Vertex> {
+const fn get_next_direction(loc: vertex::Vertex, action: usize) -> Option<vertex::Vertex> {
     let dir = ACTION[action];
     let x = loc.1 as i32 + dir.1;
     let y = loc.0 as i32 + dir.0;
@@ -21,11 +21,26 @@ pub const fn get_next_loc(loc: vertex::Vertex, action: usize) -> Option<vertex::
     }
 }
 
-pub fn is_invalid_loc(map: &[Vec<u8>], next_loc: vertex::Vertex) -> bool {
+fn is_invalid_loc(map: &[Vec<u8>], next_loc: vertex::Vertex) -> bool {
     let height = map.len() as u16;
     let width = map[0].len() as u16;
     // Out of bound in vertical or horizontal axis or encounter map obstacle
     next_loc.0 >= height
         || next_loc.1 >= width
         || map[next_loc.0 as usize][next_loc.1 as usize] == 0
+}
+
+pub fn get_next_loc(
+    map: &[Vec<u8>],
+    cur_loc: vertex::Vertex,
+    action: usize,
+) -> Option<vertex::Vertex> {
+    let next_loc = match get_next_direction(cur_loc, action) {
+        Some(vertex) => vertex,
+        None => return None,
+    };
+    if is_invalid_loc(map, next_loc) {
+        return None;
+    }
+    Some(next_loc)
 }

@@ -39,10 +39,6 @@ fn main() {
     let args = Args::parse();
 
     let map_instance = map_reader::map::import_map_instance(&args.file).unwrap();
-    let map = map_instance.map;
-    let starts = map_instance.starts;
-    let goals = map_instance.goals;
-
     let heuristics: Vec<bool> = vec![args.cg, args.dg, args.wdg];
 
     // for r in &map {
@@ -52,7 +48,7 @@ fn main() {
     // println!("{:?}", goals);
     // println!();
 
-    let paths = cbs::cbs(&map, starts, goals, None, args.disjoint, heuristics);
+    let paths = cbs::cbs(&map_instance, None, args.disjoint, heuristics);
     match paths {
         Some(_paths) => {}
         None => println!("No solution."),

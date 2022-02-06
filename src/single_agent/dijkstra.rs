@@ -7,21 +7,6 @@ use cached::SizedCache;
 
 const CACHE_SIZE: usize = 100;
 
-pub fn get_next_loc(
-    map: &[Vec<u8>],
-    cur_loc: vertex::Vertex,
-    action: usize,
-) -> Option<vertex::Vertex> {
-    let next_loc = match lib::get_next_loc(cur_loc, action) {
-        Some(vertex) => vertex,
-        None => return None,
-    };
-    if lib::is_invalid_loc(map, next_loc) {
-        return None;
-    }
-    Some(next_loc)
-}
-
 /// Use Dijkstra to build a shortest path from a location to all other locations
 #[cached(
     type = "SizedCache<vertex::Vertex, HashMap<vertex::Vertex, u16>>",
@@ -48,7 +33,7 @@ pub fn compute_heuristics(
     while !open_list.is_empty() {
         let cur_node = open_list.pop().unwrap();
         for action in 0..4 {
-            let next_loc = match get_next_loc(map, cur_node.loc, action) {
+            let next_loc = match lib::get_next_loc(map, cur_node.loc, action) {
                 Some(vertex) => vertex,
                 None => continue,
             };

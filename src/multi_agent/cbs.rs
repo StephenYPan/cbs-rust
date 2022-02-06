@@ -1,4 +1,5 @@
 use crate::datatype::{cardinal, collision, constraint, edge, location, vertex};
+use crate::map_reader::map;
 use crate::multi_agent::{heuristic, lib, mdd};
 use crate::single_agent::{astar, dijkstra};
 use std::cmp::max;
@@ -218,19 +219,22 @@ fn bypass_collisions(
 }
 
 pub fn cbs(
-    map: &[Vec<u8>],
-    starts: Vec<vertex::Vertex>,
-    goals: Vec<vertex::Vertex>,
+    map_instance: &map::MapInstance,
     constraints: Option<Vec<constraint::Constraint>>,
     disjoint: bool,
     heuristics: Vec<bool>,
 ) -> Option<Vec<Vec<vertex::Vertex>>> {
     let now = Instant::now();
     let mut mdd_time: std::time::Duration = std::time::Duration::new(0, 0);
+    let mut heuristic_time: std::time::Duration = std::time::Duration::new(0, 0);
+
+    let map = &map_instance.map;
+    let starts = &map_instance.starts;
+    let goals = &map_instance.goals;
 
     let num_agents = starts.len();
     let mut h_values: Vec<HashMap<vertex::Vertex, u16>> = Vec::with_capacity(num_agents);
-    for g in &goals {
+    for g in goals {
         h_values.push(dijkstra::compute_heuristics(map, *g));
     }
 
@@ -265,9 +269,17 @@ pub fn cbs(
         Some(constraints) => constraints,
         None => Vec::new(),
     };
-    let root_collisions = detect_collisions(&root_paths);
+    let mut root_collisions = detect_collisions(&root_paths);
+    detect_cardinal_conflicts(&mut root_collisions, &root_mdds);
     let root_g_val = get_sum_cost(&root_paths);
-    let root_h_val = 0;
+    let heuristic_now = Instant::now();
+    let root_h_val = match heuristics.as_slice() {
+        [true, false, false] => heuristic::cg_heuristic(&root_collisions, &root_mdds),
+        [_, true, false] => heuristic::dg_heuristic(&root_collisions, &root_mdds),
+        [_, _, true] => heuristic::wdg_heuristic(&root_collisions, &root_mdds),
+        _ => 0,
+    };
+    heuristic_time += heuristic_now.elapsed();
 
     // Move all the variables inside the node.
     let root = Node::new(
@@ -299,8 +311,9 @@ pub fn cbs(
         if cur_node.collisions.is_empty() {
             // Solution found
             let elapsed_time = now.elapsed();
-            println!("\nCPU time: {:?}", elapsed_time);
-            println!("Mdd time: {:?}", mdd_time);
+            println!("\nCPU time: {:>18?}", elapsed_time);
+            println!("Mdd time: {:>18?}", mdd_time);
+            println!("Heuristic time: {:>12?}", heuristic_time);
             println!("Cost: {}", cur_node.g_val);
             println!("Nodes expanded:  {}", pop_counter);
             println!("Nodes generated: {}", push_counter);
@@ -312,7 +325,6 @@ pub fn cbs(
 
         // Improved cbs: Always split on cardinal or semi-cardinal conflicts, then
         // attempt to bypass when there are no more cardinal and semi-cardinal conflicts.
-        detect_cardinal_conflicts(&mut cur_node.collisions, &cur_node.mdds);
         let mut cur_collision: collision::Collision = cur_node.collisions[0];
         let mut attempt_bypass = true;
         for collision in &cur_node.collisions {
@@ -326,7 +338,7 @@ pub fn cbs(
             }
         }
         if attempt_bypass {
-            match bypass_collisions(&mut cur_node, map, &starts, &goals, &h_values) {
+            match bypass_collisions(&mut cur_node, map, starts, goals, &h_values) {
                 Some(collision) => cur_collision = collision,
                 None => {
                     open_list.push(cur_node);
@@ -436,11 +448,18 @@ pub fn cbs(
                     continue;
                 }
             }
-
             new_constraints.shrink_to_fit();
-            let new_collisions = detect_collisions(&new_paths);
+            let mut new_collisions = detect_collisions(&new_paths);
+            detect_cardinal_conflicts(&mut new_collisions, &new_mdds);
             let new_g_val = get_sum_cost(&new_paths);
-            let new_h_val = 0;
+            let heuristic_now = Instant::now();
+            let new_h_val = match heuristics.as_slice() {
+                [true, false, false] => heuristic::cg_heuristic(&new_collisions, &new_mdds),
+                [_, true, false] => heuristic::dg_heuristic(&new_collisions, &new_mdds),
+                [_, _, true] => heuristic::wdg_heuristic(&new_collisions, &new_mdds),
+                _ => 0,
+            };
+            heuristic_time += heuristic_now.elapsed();
 
             // Move all the variables inside the node.
             let new_node = Node::new(

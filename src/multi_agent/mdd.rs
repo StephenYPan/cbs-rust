@@ -1,6 +1,6 @@
 use crate::datatype::{cardinal, collision, constraint, edge, location, vertex};
 use crate::multi_agent::lib;
-use crate::single_agent::dijkstra;
+use crate::single_agent;
 use std::cmp::min;
 use std::collections::HashSet;
 
@@ -288,8 +288,8 @@ fn build_partial_mdd(
     max_cost: u16,
 ) -> Vec<Vec<edge::Edge>> {
     let mut partial_mdd = Vec::with_capacity(max_cost as usize);
-    let start_h_val = dijkstra::compute_heuristics(map, start);
-    let goal_h_val = dijkstra::compute_heuristics(map, goal);
+    let start_h_val = single_agent::dijkstra::compute_heuristics(map, start);
+    let goal_h_val = single_agent::dijkstra::compute_heuristics(map, goal);
     let valid_locations: Vec<(vertex::Vertex, u16)> = start_h_val
         .iter() // parallelize iter(?)
         .filter(|(k, v)| *v + goal_h_val[k] <= max_cost)
@@ -304,7 +304,7 @@ fn build_partial_mdd(
             .collect();
         for cur_loc in start_locations {
             for action in 0..5 {
-                let next_loc = match dijkstra::get_next_loc(map, cur_loc, action) {
+                let next_loc = match single_agent::lib::get_next_loc(map, cur_loc, action) {
                     Some(vertex) => vertex,
                     None => continue,
                 };

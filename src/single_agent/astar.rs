@@ -1,5 +1,5 @@
 use crate::datatype::{constraint, edge, vertex};
-use crate::single_agent::dijkstra;
+use crate::single_agent::lib;
 use std::cmp::max;
 use std::collections::{BinaryHeap, HashMap, HashSet};
 
@@ -76,7 +76,7 @@ pub fn astar(
             return Some(tree.get_path(cur_idx));
         }
         for action in 0..5 {
-            let next_loc = match dijkstra::get_next_loc(map, cur_node.loc, action) {
+            let next_loc = match lib::get_next_loc(map, cur_node.loc, action) {
                 Some(vertex) => vertex,
                 None => continue,
             };
