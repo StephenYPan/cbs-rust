@@ -32,10 +32,12 @@ fn detect_cardinal_conflicts(collisions: &mut [collision::Collision], mdds: &[md
         if let Some(mut cardinal_conflict) =
             mdd::find_cardinal_conflict(&mdds[a1], &mdds[a2], a1 as u8, a2 as u8)
         {
-            // The return value is cached so we need to adjust the conflict
-            // agents such that recursive calls to cbs is satisfied.
-            cardinal_conflict.a1 = a1 as u8;
-            cardinal_conflict.a2 = a2 as u8;
+            // NOTE: The return value is cached so we need to adjust the
+            // conflict agents such that recursive calls to cbs is satisfied
+            // and conflicts discovered by the parent is not the cache value
+            // from the recursive call.
+            cardinal_conflict.a1 = collision.a1;
+            cardinal_conflict.a2 = collision.a2;
             conflict_index.push(i);
             conflicts.push(cardinal_conflict);
             continue;
@@ -61,7 +63,6 @@ fn detect_collisions(paths: &[Vec<vertex::Vertex>]) -> Vec<collision::Collision>
                 let prev_loc1 = get_location(&paths[i], t - 1);
                 let prev_loc2 = get_location(&paths[j], t - 1);
                 if cur_loc1 == cur_loc2 {
-                    // Vertex collision
                     collisions.push(collision::Collision::new(
                         i as u8,
                         j as u8,
@@ -72,7 +73,6 @@ fn detect_collisions(paths: &[Vec<vertex::Vertex>]) -> Vec<collision::Collision>
                     break;
                 }
                 if cur_loc1 == prev_loc2 && cur_loc2 == prev_loc1 {
-                    // Edge collision
                     collisions.push(collision::Collision::new(
                         i as u8,
                         j as u8,
@@ -133,6 +133,7 @@ fn disjoint_split(collision: &collision::Collision) -> Vec<constraint::Constrain
     result[other_idx].agent = random_agent;
     result[other_idx].loc = random_loc;
     result[other_idx].is_positive = true;
+    result[other_idx].cardinal = cardinal::Cardinal::Non;
     result
 }
 
@@ -185,7 +186,7 @@ fn bypass_collisions(
             temp_constraints.extend(&node.constraints);
             let agent_constraints: Vec<constraint::Constraint> = temp_constraints
                 .iter()
-                .filter(|c| c.agent == agent as u8)
+                .filter(|c| c.agent == constraint.agent)
                 .copied()
                 .collect();
             match astar::astar(
@@ -230,8 +231,8 @@ pub fn cbs(
     heuristics: Vec<bool>,
 ) -> Option<Vec<Vec<vertex::Vertex>>> {
     let now = Instant::now();
-    let mut mdd_time: std::time::Duration = std::time::Duration::new(0, 0);
-    let mut heuristic_time: std::time::Duration = std::time::Duration::new(0, 0);
+    let mut mdd_time = std::time::Duration::new(0, 0);
+    let mut heuristic_time = std::time::Duration::new(0, 0);
 
     let map = &map_instance.map;
     let starts = &map_instance.starts;
@@ -377,7 +378,7 @@ pub fn cbs(
 
             let agent_constraints: Vec<constraint::Constraint> = new_constraints
                 .iter() // parallelize iter(?)
-                .filter(|c| c.agent == constraint_agent as u8)
+                .filter(|c| c.agent == new_constraint.agent)
                 .copied()
                 .collect();
             let mut new_paths = cur_node.paths.clone();

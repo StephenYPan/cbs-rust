@@ -47,7 +47,7 @@ fn find_min_vertex_cover(graph: Vec<Vec<u8>>, num_vertices: usize, num_edges: us
     if num_edges <= 1 {
         return num_edges as u16;
     }
-    let mut low = 1; // Lower bound for for minimum vertex cover
+    let mut low = 1; // Lower bound for minimum vertex cover
     let mut high = min(num_edges + 1, num_vertices);
     while low < high {
         let mid = (low + high) >> 1;
@@ -137,7 +137,7 @@ pub fn wdg_heuristic(
         };
         let mut sub_constraints: Vec<constraint::Constraint> = constraints
             .iter()
-            .filter(|c| c.agent == a1 as u8 || c.agent == a2 as u8)
+            .filter(|c| c.agent == collision.a1 || c.agent == collision.a2)
             .copied()
             .collect();
         for c in &mut sub_constraints {

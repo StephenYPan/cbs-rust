@@ -69,7 +69,6 @@ pub fn find_cardinal_conflict(
         let layer2 = &mdd2.mdd[i];
         let edge1 = layer1[0];
         let edge2 = layer2[0];
-        // Check for edge collision, compare first edge with reversed second edge
         if layer1.len() == 1 && layer2.len() == 1 && edge1.0 == edge2.1 && edge1.1 == edge2.0 {
             return Some(collision::Collision::new(
                 agent1,
@@ -101,7 +100,6 @@ pub fn find_cardinal_conflict(
     sync_writes = true
 )]
 pub fn find_dependency_conflict(mdd1: &Mdd, mdd2: &Mdd, agent1: u8, agent2: u8) -> bool {
-    // Find all the dependency conflicts return the last one.
     let mut joint_mdd: HashSet<(usize, vertex::Vertex, vertex::Vertex)> = HashSet::new();
     joint_mdd.insert((0, mdd1.mdd[0][0].0, mdd2.mdd[0][0].0));
     let min_timestep = min(mdd1.mdd.len(), mdd2.mdd.len());
@@ -114,12 +112,8 @@ pub fn find_dependency_conflict(mdd1: &Mdd, mdd2: &Mdd, agent1: u8, agent2: u8) 
                 if joint_mdd.get(&(i, edge1.0, edge2.0)).is_none() {
                     continue;
                 }
-                if edge1.1 == edge2.1 {
-                    // Vertex dependency conflict
-                    continue;
-                }
-                if edge1.0 == edge2.1 && edge1.1 == edge2.0 {
-                    // Edge dependency conflict
+                if (edge1.1 == edge2.1) || (edge1.0 == edge2.1 && edge1.1 == edge2.0) {
+                    // Vertex or edge dependency conflict
                     continue;
                 }
                 joint_mdd.insert((i + 1, edge1.1, edge2.1));
@@ -139,7 +133,6 @@ fn find_extended_mdd_conflict(
     agent1: u8,
     agent2: u8,
 ) -> Option<collision::Collision> {
-    // Find the first cardinal conflicts and return it.
     if mdd1.mdd.len() == mdd2.mdd.len() {
         return None;
     }
