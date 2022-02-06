@@ -29,9 +29,13 @@ fn detect_cardinal_conflicts(collisions: &mut [collision::Collision], mdds: &[md
     for (i, collision) in collisions.iter_mut().enumerate() {
         let a1 = collision.a1 as usize;
         let a2 = collision.a2 as usize;
-        if let Some(cardinal_conflict) =
+        if let Some(mut cardinal_conflict) =
             mdd::find_cardinal_conflict(&mdds[a1], &mdds[a2], a1 as u8, a2 as u8)
         {
+            // The return value is cached so we need to adjust the conflict
+            // agents such that recursive calls to cbs is satisfied.
+            cardinal_conflict.a1 = a1 as u8;
+            cardinal_conflict.a2 = a2 as u8;
             conflict_index.push(i);
             conflicts.push(cardinal_conflict);
             continue;
@@ -221,6 +225,7 @@ fn bypass_collisions(
 pub fn cbs(
     map_instance: &map::MapInstance,
     constraints: Option<Vec<constraint::Constraint>>,
+    child_process: bool,
     disjoint: bool,
     heuristics: Vec<bool>,
 ) -> Option<Vec<Vec<vertex::Vertex>>> {
@@ -306,22 +311,26 @@ pub fn cbs(
     while !open_list.is_empty() {
         let mut cur_node = open_list.pop().unwrap();
         pop_counter += 1;
-        println!(
-            "pop: [f-val: {}, g-val: {}, h-val: {}, num_col: {:2}]",
-            cur_node.g_val + cur_node.h_val,
-            cur_node.g_val,
-            cur_node.h_val,
-            cur_node.collisions.len()
-        );
+        if !child_process {
+            println!(
+                "pop: [f-val: {}, g-val: {}, h-val: {}, num_col: {:2}]",
+                cur_node.g_val + cur_node.h_val,
+                cur_node.g_val,
+                cur_node.h_val,
+                cur_node.collisions.len()
+            );
+        }
         if cur_node.collisions.is_empty() {
             // Solution found
             let elapsed_time = now.elapsed();
-            println!("\nCPU time: {:>17?}", elapsed_time);
-            println!("Mdd build time: {:>11?}", mdd_time);
-            println!("Heuristic time: {:>11?}", heuristic_time);
-            println!("Cost: {}", cur_node.g_val);
-            println!("Nodes expanded:  {}", pop_counter);
-            println!("Nodes generated: {}", push_counter);
+            if !child_process {
+                println!("\nCPU time: {:>17?}", elapsed_time);
+                println!("Mdd build time: {:>11?}", mdd_time);
+                println!("Heuristic time: {:>11?}", heuristic_time);
+                println!("Cost: {}", cur_node.g_val);
+                println!("Nodes expanded:  {}", pop_counter);
+                println!("Nodes generated: {}", push_counter);
+            }
             return Some(cur_node.paths);
         }
         // TODO: Lazy heuristics

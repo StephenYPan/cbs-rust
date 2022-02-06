@@ -1,7 +1,7 @@
 use crate::datatype::{cardinal, collision, constraint};
 use crate::map_reader::map;
-use crate::multi_agent::mdd;
-use std::cmp::min;
+use crate::multi_agent::{cbs, mdd};
+use std::cmp::{max, min};
 
 /// Get next bit permutation of greater value from the given set.
 fn gospers_hack(set: i32) -> i32 {
@@ -103,7 +103,7 @@ fn find_min_edge_weight_min_vertex_cover(
     num_edges: usize,
 ) -> u16 {
     // Gosper's hack
-    let mvc_set = find_min_vertex_cover(graph, num_vertices, num_edges);
+    // let mvc_set = find_min_vertex_cover(graph, num_vertices, num_edges);
     0
 }
 
@@ -118,22 +118,61 @@ pub fn wdg_heuristic(
     mdds: &[mdd::Mdd],
 ) -> u16 {
     let num_vertices = mdds.len();
+    // num_edges and graph are shared variables, should be atomic
     let mut num_edges: usize = 0;
     let mut graph: Vec<Vec<u8>> = vec![vec![0; num_vertices]; num_vertices];
+
+    // TODO: Parallelize this search
     for collision in collisions {
         if collision.cardinal == cardinal::Cardinal::Non {
             continue;
         }
         let a1 = collision.a1 as usize;
         let a2 = collision.a2 as usize;
-        // TODO: Find edge cost
-        // CBS params
-        // map_instance: &map::MapInstance,
-        // constraints: Option<Vec<constraint::Constraint>>,
-        // disjoint: bool,
-        // heuristics: Vec<bool>,
-        graph[a1][a2] = 1;
-        graph[a2][a1] = 1;
+
+        let sub_map_instance: map::MapInstance = map::MapInstance {
+            map: map_instance.map.clone(),
+            starts: vec![map_instance.starts[a1], map_instance.starts[a2]],
+            goals: vec![map_instance.goals[a1], map_instance.goals[a2]],
+        };
+        let mut sub_constraints: Vec<constraint::Constraint> = constraints
+            .iter()
+            .filter(|c| c.agent == a1 as u8 || c.agent == a2 as u8)
+            .copied()
+            .collect();
+        for c in &mut sub_constraints {
+            c.agent = if c.agent == a1 as u8 { 0 } else { 1 };
+        }
+        let heuristics = vec![false, true, false];
+        let paths = cbs::cbs(
+            &sub_map_instance,
+            Some(sub_constraints),
+            true,
+            true,
+            heuristics,
+        );
+        match paths {
+            Some(paths) => {
+                // mdd length goes from 0 to path.len() - 2, to match
+                // it with the new path we take the new_path.len() - 1.
+                let path_len1 = mdds[a1].mdd.len();
+                let path_len2 = mdds[a2].mdd.len();
+                let new_path_len1 = paths[0].len() - 1;
+                let new_path_len2 = paths[1].len() - 1;
+                // TODO: Is this max or min?
+                let mut edge_weight = max(
+                    new_path_len1.saturating_sub(path_len1),
+                    new_path_len2.saturating_sub(path_len2),
+                );
+                edge_weight = max(edge_weight, 1);
+                graph[a1][a2] = edge_weight as u8;
+                graph[a2][a1] = edge_weight as u8;
+            }
+            None => {
+                graph[a1][a2] = 1;
+                graph[a2][a1] = 1;
+            }
+        }
         num_edges += 1;
     }
     find_min_edge_weight_min_vertex_cover(graph, num_vertices, num_edges)
