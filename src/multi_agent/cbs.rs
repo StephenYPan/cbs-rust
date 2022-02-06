@@ -133,7 +133,6 @@ fn disjoint_split(collision: &collision::Collision) -> Vec<constraint::Constrain
     result[other_idx].agent = random_agent;
     result[other_idx].loc = random_loc;
     result[other_idx].is_positive = true;
-    result[other_idx].cardinal = cardinal::Cardinal::Non;
     result
 }
 
@@ -386,10 +385,10 @@ pub fn cbs(
                 cardinal::Cardinal::Full | cardinal::Cardinal::Semi => {
                     // Force the agent to increase its path length by 1 in cases where constraint
                     // is negative. In positive cases the agent path length will stay the same.
-                    if !new_constraint.is_positive {
-                        new_paths[constraint_agent].len()
-                    } else {
+                    if disjoint {
                         new_paths[constraint_agent].len() - 1
+                    } else {
+                        new_paths[constraint_agent].len()
                     }
                 }
                 cardinal::Cardinal::Non => 0,
