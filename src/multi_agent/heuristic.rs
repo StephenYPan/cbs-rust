@@ -1,4 +1,5 @@
-use crate::datatype::{cardinal, collision};
+use crate::datatype::{cardinal, collision, constraint};
+use crate::map_reader::map;
 use crate::multi_agent::mdd;
 use std::cmp::min;
 
@@ -59,6 +60,7 @@ fn find_min_vertex_cover(graph: Vec<Vec<u8>>, num_vertices: usize, num_edges: us
     low as u16
 }
 
+/// Calculate and generate a graph based only on full cardinal conflicts.
 pub fn cg_heuristic(collisions: &[collision::Collision], mdds: &[mdd::Mdd]) -> u16 {
     let num_vertices = mdds.len();
     let mut num_edges: usize = 0;
@@ -76,6 +78,7 @@ pub fn cg_heuristic(collisions: &[collision::Collision], mdds: &[mdd::Mdd]) -> u
     find_min_vertex_cover(graph, num_vertices, num_edges)
 }
 
+/// Calculate and generate a graph based only on full and semi cardinal conflicts.
 pub fn dg_heuristic(collisions: &[collision::Collision], mdds: &[mdd::Mdd]) -> u16 {
     let num_vertices = mdds.len();
     let mut num_edges: usize = 0;
@@ -104,7 +107,16 @@ fn find_min_edge_weight_min_vertex_cover(
     0
 }
 
-pub fn wdg_heuristic(collisions: &[collision::Collision], mdds: &[mdd::Mdd]) -> u16 {
+#[allow(unused)]
+/// Generate a graph based only on full and semi cardinal conflicts, then run cbs
+/// on the conflicting agents to generate the edge cost. If no solution is found
+/// between the two conflicting agents, then the edge cost is defaulted to 1.
+pub fn wdg_heuristic(
+    map_instance: &map::MapInstance,
+    constraints: &[constraint::Constraint],
+    collisions: &[collision::Collision],
+    mdds: &[mdd::Mdd],
+) -> u16 {
     let num_vertices = mdds.len();
     let mut num_edges: usize = 0;
     let mut graph: Vec<Vec<u8>> = vec![vec![0; num_vertices]; num_vertices];
@@ -116,9 +128,7 @@ pub fn wdg_heuristic(collisions: &[collision::Collision], mdds: &[mdd::Mdd]) -> 
         let a2 = collision.a2 as usize;
         // TODO: Find edge cost
         // CBS params
-        // map: &[Vec<u8>],
-        // starts: Vec<vertex::Vertex>,
-        // goals: Vec<vertex::Vertex>,
+        // map_instance: &map::MapInstance,
         // constraints: Option<Vec<constraint::Constraint>>,
         // disjoint: bool,
         // heuristics: Vec<bool>,

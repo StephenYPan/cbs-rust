@@ -30,9 +30,6 @@ struct Args {
     /// Turn on weighted dependency graph heuristic
     #[clap(short, long)]
     wdg: bool,
-    // /// Turn on heuristic(s): cg, dg, and/or wdg
-    // #[clap(short, long, multiple_values = true)]
-    // heuristics: Vec<heuristic::Heuristic>,
 }
 
 fn main() {
@@ -40,13 +37,6 @@ fn main() {
 
     let map_instance = map_reader::map::import_map_instance(&args.file).unwrap();
     let heuristics: Vec<bool> = vec![args.cg, args.dg, args.wdg];
-
-    // for r in &map {
-    //     println!("{:?}", r);
-    // }
-    // println!("{:?}", starts);
-    // println!("{:?}", goals);
-    // println!();
 
     let paths = cbs::cbs(&map_instance, None, args.disjoint, heuristics);
     match paths {

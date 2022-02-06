@@ -23,9 +23,9 @@ fn get_location(path: &[vertex::Vertex], timestep: usize) -> vertex::Vertex {
 
 /// Mutates the input vector of collisions by replacing the collisions
 /// with cardinal or semi-cardinal collisions if applicable.
-pub fn detect_cardinal_conflicts(collisions: &mut [collision::Collision], mdds: &[mdd::Mdd]) {
+fn detect_cardinal_conflicts(collisions: &mut [collision::Collision], mdds: &[mdd::Mdd]) {
     let mut conflict_index: Vec<usize> = Vec::new();
-    let mut conflicts: Vec<collision::Collision> = Vec::new();
+    let mut conflicts: Vec<collision::Collision> = Vec::with_capacity(collisions.len());
     for (i, collision) in collisions.iter_mut().enumerate() {
         let a1 = collision.a1 as usize;
         let a2 = collision.a2 as usize;
@@ -276,7 +276,12 @@ pub fn cbs(
     let root_h_val = match heuristics.as_slice() {
         [true, false, false] => heuristic::cg_heuristic(&root_collisions, &root_mdds),
         [_, true, false] => heuristic::dg_heuristic(&root_collisions, &root_mdds),
-        [_, _, true] => heuristic::wdg_heuristic(&root_collisions, &root_mdds),
+        [_, _, true] => heuristic::wdg_heuristic(
+            map_instance,
+            &root_constraints,
+            &root_collisions,
+            &root_mdds,
+        ),
         _ => 0,
     };
     heuristic_time += heuristic_now.elapsed();
@@ -311,9 +316,9 @@ pub fn cbs(
         if cur_node.collisions.is_empty() {
             // Solution found
             let elapsed_time = now.elapsed();
-            println!("\nCPU time: {:>18?}", elapsed_time);
-            println!("Mdd time: {:>18?}", mdd_time);
-            println!("Heuristic time: {:>12?}", heuristic_time);
+            println!("\nCPU time: {:>17?}", elapsed_time);
+            println!("Mdd build time: {:>11?}", mdd_time);
+            println!("Heuristic time: {:>11?}", heuristic_time);
             println!("Cost: {}", cur_node.g_val);
             println!("Nodes expanded:  {}", pop_counter);
             println!("Nodes generated: {}", push_counter);
@@ -456,7 +461,12 @@ pub fn cbs(
             let new_h_val = match heuristics.as_slice() {
                 [true, false, false] => heuristic::cg_heuristic(&new_collisions, &new_mdds),
                 [_, true, false] => heuristic::dg_heuristic(&new_collisions, &new_mdds),
-                [_, _, true] => heuristic::wdg_heuristic(&new_collisions, &new_mdds),
+                [_, _, true] => heuristic::wdg_heuristic(
+                    map_instance,
+                    &new_constraints,
+                    &new_collisions,
+                    &new_mdds,
+                ),
                 _ => 0,
             };
             heuristic_time += heuristic_now.elapsed();
@@ -480,7 +490,7 @@ pub fn cbs(
 use std::cmp::Ordering;
 
 #[derive(Debug, Eq)]
-pub struct Node {
+struct Node {
     pub g_val: u16,
     pub h_val: u16,
     pub paths: Vec<Vec<vertex::Vertex>>,
