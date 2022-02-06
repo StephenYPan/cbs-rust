@@ -20,10 +20,32 @@ fn get_location(path: &[vertex::Vertex], timestep: usize) -> vertex::Vertex {
     }
 }
 
-fn detect_collisions(
-    paths: &[Vec<vertex::Vertex>],
-    mdds: Option<&[mdd::Mdd]>,
-) -> Vec<collision::Collision> {
+/// Mutates the input vector of collisions by replacing the collisions
+/// with cardinal or semi-cardinal collisions if applicable.
+pub fn detect_cardinal_conflicts(collisions: &mut [collision::Collision], mdds: &[mdd::Mdd]) {
+    let mut conflict_index: Vec<usize> = Vec::new();
+    let mut conflicts: Vec<collision::Collision> = Vec::new();
+    for (i, collision) in collisions.iter_mut().enumerate() {
+        let a1 = collision.a1 as usize;
+        let a2 = collision.a2 as usize;
+        if let Some(cardinal_conflict) =
+            mdd::find_cardinal_conflict(&mdds[a1], &mdds[a2], a1 as u8, a2 as u8)
+        {
+            conflict_index.push(i);
+            conflicts.push(cardinal_conflict);
+            continue;
+        }
+        if mdd::find_dependency_conflict(&mdds[a1], &mdds[a2], a1 as u8, a2 as u8).is_some() {
+            collision.cardinal = cardinal::Cardinal::Semi;
+            continue;
+        }
+    }
+    for (i, c) in conflict_index.iter().zip(conflicts) {
+        collisions[*i] = c;
+    }
+}
+
+fn detect_collisions(paths: &[Vec<vertex::Vertex>]) -> Vec<collision::Collision> {
     let mut collisions = Vec::new();
     let num_agents = paths.len();
     for i in 0..num_agents {
@@ -58,51 +80,38 @@ fn detect_collisions(
             }
         }
     }
-    if let Some(mdds) = mdds {
-        lib::detect_cardinal_conflicts(&mut collisions, mdds);
-    }
     collisions.shrink_to_fit();
     collisions
 }
 
 fn standard_split(collision: &collision::Collision) -> Vec<constraint::Constraint> {
+    let mut vec = vec![
+        constraint::Constraint::new(
+            collision.a1,
+            collision.loc,
+            collision.timestep,
+            false,
+            collision.cardinal,
+        ),
+        constraint::Constraint::new(
+            collision.a2,
+            collision.loc,
+            collision.timestep,
+            false,
+            collision.cardinal,
+        ),
+    ];
     match collision.loc {
-        location::Location::Vertex(_) => {
-            vec![
-                constraint::Constraint::new(
-                    collision.a1,
-                    collision.loc,
-                    collision.timestep,
-                    false,
-                    collision.cardinal,
-                ),
-                constraint::Constraint::new(
-                    collision.a2,
-                    collision.loc,
-                    collision.timestep,
-                    false,
-                    collision.cardinal,
-                ),
-            ]
-        }
+        location::Location::Vertex(_) => vec,
         location::Location::Edge(edge) => {
-            let reversed_edge = location::Location::new(edge::Edge(edge.1, edge.0));
-            vec![
-                constraint::Constraint::new(
-                    collision.a1,
-                    collision.loc,
-                    collision.timestep,
-                    false,
-                    collision.cardinal,
-                ),
-                constraint::Constraint::new(
-                    collision.a2,
-                    reversed_edge,
-                    collision.timestep,
-                    false,
-                    collision.cardinal,
-                ),
-            ]
+            vec[1] = constraint::Constraint::new(
+                collision.a2,
+                location::Location::new(edge::Edge(edge.1, edge.0)),
+                collision.timestep,
+                false,
+                collision.cardinal,
+            );
+            vec
         }
     }
 }
@@ -188,7 +197,7 @@ fn bypass_collisions(
                     if node.paths[agent].len() == path.len() {
                         let mut new_paths = node.paths.clone();
                         new_paths[agent] = path.clone();
-                        let new_num_collisions = detect_collisions(&new_paths, None).len();
+                        let new_num_collisions = detect_collisions(&new_paths).len();
                         if new_num_collisions < num_collisions {
                             node.paths[agent] = path;
                             num_collisions = new_num_collisions;
@@ -199,7 +208,7 @@ fn bypass_collisions(
             };
         }
     }
-    node.collisions = detect_collisions(&node.paths, None);
+    node.collisions = detect_collisions(&node.paths);
     node.g_val = get_sum_cost(&node.paths);
     if node.collisions.is_empty() {
         None // Found solution
@@ -256,7 +265,7 @@ pub fn cbs(
         Some(constraints) => constraints,
         None => Vec::new(),
     };
-    let root_collisions = detect_collisions(&root_paths, Some(&root_mdds));
+    let root_collisions = detect_collisions(&root_paths);
     let root_g_val = get_sum_cost(&root_paths);
     let root_h_val = 0;
 
@@ -303,6 +312,7 @@ pub fn cbs(
 
         // Improved cbs: Always split on cardinal or semi-cardinal conflicts, then
         // attempt to bypass when there are no more cardinal and semi-cardinal conflicts.
+        detect_cardinal_conflicts(&mut cur_node.collisions, &cur_node.mdds);
         let mut cur_collision: collision::Collision = cur_node.collisions[0];
         let mut attempt_bypass = true;
         for collision in &cur_node.collisions {
@@ -428,7 +438,7 @@ pub fn cbs(
             }
 
             new_constraints.shrink_to_fit();
-            let new_collisions = detect_collisions(&new_paths, Some(&new_mdds));
+            let new_collisions = detect_collisions(&new_paths);
             let new_g_val = get_sum_cost(&new_paths);
             let new_h_val = 0;
 
@@ -463,12 +473,7 @@ pub struct Node {
 impl PartialEq for Node {
     fn eq(&self, other: &Self) -> bool {
         if self.g_val.eq(&other.g_val) {
-            for (p1, p2) in self.paths.iter().zip(&other.paths) {
-                if lib::hash(p1) != lib::hash(p2) {
-                    return false;
-                }
-            }
-            true
+            lib::hash2d(&self.paths) == lib::hash2d(&other.paths)
         } else {
             false
         }

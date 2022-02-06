@@ -2,34 +2,21 @@ use crate::datatype::{cardinal, collision, constraint, edge, location, vertex};
 use crate::multi_agent::lib;
 use crate::single_agent::dijkstra;
 use std::cmp::min;
-use std::collections::{hash_map::DefaultHasher, HashSet};
-use std::hash::{Hash, Hasher};
+use std::collections::HashSet;
 
 use cached::proc_macro::cached;
 use cached::SizedCache;
 // use rayon::prelude::*;
 
-// TODO: Add hash value to mdd
 #[derive(Debug, Eq, Clone)]
 pub struct Mdd {
     pub mdd: Vec<Vec<edge::Edge>>,
+    hash: u64,
 }
 
-// TODO: Change to compare hash
 impl PartialEq for Mdd {
     fn eq(&self, other: &Self) -> bool {
-        if self.mdd.len() != other.mdd.len() {
-            false
-        } else {
-            for (i, layer) in self.mdd.iter().enumerate() {
-                for (e1, e2) in layer.iter().zip(&other.mdd[i]) {
-                    if e1 != e2 {
-                        return false;
-                    }
-                }
-            }
-            true
-        }
+        self.hash == other.hash
     }
 }
 
@@ -40,20 +27,24 @@ impl Mdd {
         constraints: &[constraint::Constraint],
     ) -> Mdd {
         let mdd = build_mdd(map, path, constraints);
-        // Mdd must contain the path edges.
-        for (timestep, edge) in path.iter().zip(&path[1..]).enumerate() {
-            assert!(
-                &mdd[timestep]
-                    .iter()
-                    .any(|e| e.0 == *edge.0 && e.1 == *edge.1),
-                "path edge: {:?} at t={} not in mdd[{}]: {:?}",
-                edge,
-                timestep,
-                timestep,
-                mdd[timestep]
-            );
-        }
-        Mdd { mdd }
+        let hash = lib::hash2d(&mdd);
+        Mdd { mdd, hash }
+    }
+}
+
+fn assert_valid_mdd(mdd: &[Vec<edge::Edge>], path: &[vertex::Vertex]) {
+    // Mdd must contain the path edges.
+    for (timestep, edge) in path.iter().zip(&path[1..]).enumerate() {
+        assert!(
+            mdd[timestep]
+                .iter()
+                .any(|e| e.0 == *edge.0 && e.1 == *edge.1),
+            "path edge: {:?} at t={} not in mdd[{}]: {:?}",
+            edge,
+            timestep,
+            timestep,
+            mdd[timestep]
+        );
     }
 }
 
@@ -62,7 +53,7 @@ const CARDINAL_CACHE: usize = 1000;
 #[cached(
     type = "SizedCache<u64, Option<collision::Collision>>",
     create = "{ SizedCache::with_size(CARDINAL_CACHE) }",
-    convert = "{ _hash }",
+    convert = "{ mdd1.hash ^ mdd2.hash }",
     sync_writes = true
 )]
 pub fn find_cardinal_conflict(
@@ -70,7 +61,6 @@ pub fn find_cardinal_conflict(
     mdd2: &Mdd,
     agent1: u8,
     agent2: u8,
-    _hash: u64,
 ) -> Option<collision::Collision> {
     // Find the first cardinal conflicts and return it.
     let min_timestep = min(mdd1.mdd.len(), mdd2.mdd.len());
@@ -107,7 +97,7 @@ pub fn find_cardinal_conflict(
 #[cached(
     type = "SizedCache<u64, Option<collision::Collision>>",
     create = "{ SizedCache::with_size(CARDINAL_CACHE) }",
-    convert = "{ _hash }",
+    convert = "{ mdd1.hash ^ mdd2.hash }",
     sync_writes = true
 )]
 pub fn find_dependency_conflict(
@@ -115,7 +105,6 @@ pub fn find_dependency_conflict(
     mdd2: &Mdd,
     agent1: u8,
     agent2: u8,
-    _hash: u64,
 ) -> Option<collision::Collision> {
     // Find all the dependency conflicts return the last one.
     let mut joint_mdd: HashSet<(usize, vertex::Vertex, vertex::Vertex)> = HashSet::new();
@@ -146,6 +135,7 @@ pub fn find_dependency_conflict(
             }
         }
         if is_dependent {
+            // FIXME: This is wrong
             return Some(collision::Collision::new(
                 agent1,
                 agent2,
@@ -194,6 +184,7 @@ fn find_extended_mdd_conflict(
 
 const MDD_CACHE_SIZE: usize = 1000;
 
+// TODO: Convert constraints to hashset
 #[cached(
     type = "SizedCache<(vertex::Vertex, usize, u64), Vec<Vec<edge::Edge>>>",
     create = "{ SizedCache::with_size(MDD_CACHE_SIZE) }",
@@ -237,11 +228,12 @@ fn build_mdd(
             false => (c.timestep, location::Location::new(c.loc.1)),
         })
         .collect();
-    // Remove edges from the mdd according to each negative edge.
     if neg_constraints.is_empty() {
-        // Early exit.
+        assert_valid_mdd(&mdd, path);
         return mdd;
     }
+    let mdd_length = path_len - 1;
+    // Remove vertices and edges from the mdd and remove all fringed paths
     for (timestep, constraint) in neg_constraints {
         match constraint {
             location::Location::Edge(edge) => {
@@ -255,7 +247,6 @@ fn build_mdd(
         }
     }
     // Remove all the edges that do not generate a valid path by doing a forward and backward pass.
-    let mdd_length = path_len - 1;
     for timestep in (1..mdd_length).rev() {
         // Remove backwards, nodes without children
         let cur_layer: HashSet<vertex::Vertex> =
@@ -294,6 +285,7 @@ fn build_mdd(
         v.shrink_to_fit();
     }
     mdd.shrink_to_fit();
+    assert_valid_mdd(&mdd, path);
     mdd
 }
 
