@@ -35,7 +35,7 @@ pub fn detect_cardinal_conflicts(collisions: &mut [collision::Collision], mdds: 
             conflicts.push(cardinal_conflict);
             continue;
         }
-        if mdd::find_dependency_conflict(&mdds[a1], &mdds[a2], a1 as u8, a2 as u8).is_some() {
+        if mdd::find_dependency_conflict(&mdds[a1], &mdds[a2], a1 as u8, a2 as u8) {
             collision.cardinal = cardinal::Cardinal::Semi;
             continue;
         }

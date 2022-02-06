@@ -95,21 +95,15 @@ pub fn find_cardinal_conflict(
 }
 
 #[cached(
-    type = "SizedCache<u64, Option<collision::Collision>>",
+    type = "SizedCache<u64, bool>",
     create = "{ SizedCache::with_size(CARDINAL_CACHE) }",
     convert = "{ mdd1.hash ^ mdd2.hash }",
     sync_writes = true
 )]
-pub fn find_dependency_conflict(
-    mdd1: &Mdd,
-    mdd2: &Mdd,
-    agent1: u8,
-    agent2: u8,
-) -> Option<collision::Collision> {
+pub fn find_dependency_conflict(mdd1: &Mdd, mdd2: &Mdd, agent1: u8, agent2: u8) -> bool {
     // Find all the dependency conflicts return the last one.
     let mut joint_mdd: HashSet<(usize, vertex::Vertex, vertex::Vertex)> = HashSet::new();
     joint_mdd.insert((0, mdd1.mdd[0][0].0, mdd2.mdd[0][0].0));
-    let mut dependency_conflict = location::Location::default();
     let min_timestep = min(mdd1.mdd.len(), mdd2.mdd.len());
     for i in 0..min_timestep {
         let layer1 = &mdd1.mdd[i];
@@ -122,12 +116,10 @@ pub fn find_dependency_conflict(
                 }
                 if edge1.1 == edge2.1 {
                     // Vertex dependency conflict
-                    dependency_conflict = location::Location::new(edge1.1);
                     continue;
                 }
                 if edge1.0 == edge2.1 && edge1.1 == edge2.0 {
                     // Edge dependency conflict
-                    dependency_conflict = location::Location::new(*edge1);
                     continue;
                 }
                 joint_mdd.insert((i + 1, edge1.1, edge2.1));
@@ -135,17 +127,10 @@ pub fn find_dependency_conflict(
             }
         }
         if is_dependent {
-            // FIXME: This is wrong
-            return Some(collision::Collision::new(
-                agent1,
-                agent2,
-                dependency_conflict,
-                (i + 1) as u16,
-                cardinal::Cardinal::Semi,
-            ));
+            return true;
         }
     }
-    find_extended_mdd_conflict(mdd1, mdd2, agent1, agent2)
+    find_extended_mdd_conflict(mdd1, mdd2, agent1, agent2).is_some()
 }
 
 fn find_extended_mdd_conflict(
@@ -184,7 +169,6 @@ fn find_extended_mdd_conflict(
 
 const MDD_CACHE_SIZE: usize = 1000;
 
-// TODO: Convert constraints to hashset
 #[cached(
     type = "SizedCache<(vertex::Vertex, usize, u64), Vec<Vec<edge::Edge>>>",
     create = "{ SizedCache::with_size(MDD_CACHE_SIZE) }",
