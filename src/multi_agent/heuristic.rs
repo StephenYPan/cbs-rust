@@ -104,6 +104,10 @@ fn find_min_edge_weight_min_vertex_cover(
 ) -> u16 {
     // Gosper's hack
     // let mvc_set = find_min_vertex_cover(graph, num_vertices, num_edges);
+    // TODO: Convert graph into adjacency list to separate the disjoint subgraphs.
+    // Allow each subgraph to calculate its own min edge weight mvc, and sum up
+    // the returned results.
+
     0
 }
 
@@ -159,21 +163,26 @@ pub fn wdg_heuristic(
                 let path_len2 = mdds[a2].mdd.len();
                 let new_path_len1 = paths[0].len() - 1;
                 let new_path_len2 = paths[1].len() - 1;
-                // TODO: Is this max or min?
                 let mut edge_weight = max(
                     new_path_len1.saturating_sub(path_len1),
                     new_path_len2.saturating_sub(path_len2),
                 );
-                edge_weight = max(edge_weight, 1);
+                // NOTE: Is this optimal? If the path cost stayed the same, should
+                // we exclude it from the heuristics?
+                // edge_weight = max(edge_weight, 1);
                 graph[a1][a2] = edge_weight as u8;
                 graph[a2][a1] = edge_weight as u8;
+                if edge_weight != 0 {
+                    num_edges += 1;
+                }
             }
             None => {
                 graph[a1][a2] = 1;
                 graph[a2][a1] = 1;
+                num_edges += 1;
             }
         }
-        num_edges += 1;
+        // num_edges += 1;
     }
     find_min_edge_weight_min_vertex_cover(graph, num_vertices, num_edges)
 }
