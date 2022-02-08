@@ -48,118 +48,6 @@ fn assert_valid_mdd(mdd: &[Vec<edge::Edge>], path: &[vertex::Vertex]) {
     }
 }
 
-const CARDINAL_CACHE: usize = 1000;
-
-#[cached(
-    type = "SizedCache<u64, Option<collision::Collision>>",
-    create = "{ SizedCache::with_size(CARDINAL_CACHE) }",
-    convert = "{ mdd1.hash ^ mdd2.hash }",
-    sync_writes = true
-)]
-pub fn find_cardinal_conflict(
-    mdd1: &Mdd,
-    mdd2: &Mdd,
-    agent1: u8,
-    agent2: u8,
-) -> Option<collision::Collision> {
-    // Find the first cardinal conflicts and return it.
-    let min_timestep = min(mdd1.mdd.len(), mdd2.mdd.len());
-    for i in 0..min_timestep {
-        let layer1 = &mdd1.mdd[i];
-        let layer2 = &mdd2.mdd[i];
-        let edge1 = layer1[0];
-        let edge2 = layer2[0];
-        if layer1.len() == 1 && layer2.len() == 1 && edge1.0 == edge2.1 && edge1.1 == edge2.0 {
-            return Some(collision::Collision::new(
-                agent1,
-                agent2,
-                location::Location::new(edge1),
-                (i + 1) as u16,
-                cardinal::Cardinal::Full,
-            ));
-        }
-        let vertex1: HashSet<vertex::Vertex> = layer1.iter().map(|edge| edge.1).collect();
-        let vertex2: HashSet<vertex::Vertex> = layer2.iter().map(|edge| edge.1).collect();
-        if vertex1.len() == 1 && vertex2.len() == 1 && vertex1 == vertex2 {
-            return Some(collision::Collision::new(
-                agent1,
-                agent2,
-                location::Location::new(layer1[0].1),
-                (i + 1) as u16,
-                cardinal::Cardinal::Full,
-            ));
-        }
-    }
-    find_extended_mdd_conflict(mdd1, mdd2, agent1, agent2)
-}
-
-#[cached(
-    type = "SizedCache<u64, bool>",
-    create = "{ SizedCache::with_size(CARDINAL_CACHE) }",
-    convert = "{ mdd1.hash ^ mdd2.hash }",
-    sync_writes = true
-)]
-pub fn find_dependency_conflict(mdd1: &Mdd, mdd2: &Mdd, agent1: u8, agent2: u8) -> bool {
-    let mut joint_mdd: HashSet<(usize, vertex::Vertex, vertex::Vertex)> = HashSet::new();
-    joint_mdd.insert((0, mdd1.mdd[0][0].0, mdd2.mdd[0][0].0));
-    let min_timestep = min(mdd1.mdd.len(), mdd2.mdd.len());
-    for i in 0..min_timestep {
-        let layer1 = &mdd1.mdd[i];
-        let layer2 = &mdd2.mdd[i];
-        let mut is_dependent = true;
-        for edge1 in layer1 {
-            for edge2 in layer2 {
-                if joint_mdd.get(&(i, edge1.0, edge2.0)).is_none() {
-                    continue;
-                }
-                if (edge1.1 == edge2.1) || (edge1.0 == edge2.1 && edge1.1 == edge2.0) {
-                    // Vertex or edge dependency conflict
-                    continue;
-                }
-                joint_mdd.insert((i + 1, edge1.1, edge2.1));
-                is_dependent = false;
-            }
-        }
-        if is_dependent {
-            return true;
-        }
-    }
-    find_extended_mdd_conflict(mdd1, mdd2, agent1, agent2).is_some()
-}
-
-fn find_extended_mdd_conflict(
-    mdd1: &Mdd,
-    mdd2: &Mdd,
-    agent1: u8,
-    agent2: u8,
-) -> Option<collision::Collision> {
-    if mdd1.mdd.len() == mdd2.mdd.len() {
-        return None;
-    }
-    let start_time = min(mdd1.mdd.len(), mdd2.mdd.len());
-    let mdd;
-    let other_vertex: vertex::Vertex;
-    if mdd1.mdd.len() > mdd2.mdd.len() {
-        mdd = mdd1;
-        other_vertex = mdd2.mdd[start_time - 1].last().unwrap().1;
-    } else {
-        mdd = mdd2;
-        other_vertex = mdd1.mdd[start_time - 1].last().unwrap().1;
-    }
-    for (i, v) in mdd.mdd[start_time..].iter().enumerate() {
-        if v.len() == 1 && v[0].1 == other_vertex {
-            return Some(collision::Collision::new(
-                agent1,
-                agent2,
-                location::Location::new(other_vertex),
-                (start_time + i + 1) as u16,
-                cardinal::Cardinal::Full,
-            ));
-        }
-    }
-    None
-}
-
 const MDD_CACHE_SIZE: usize = 1000;
 
 #[cached(
@@ -311,4 +199,116 @@ fn build_partial_mdd(
         partial_mdd.push(partial_mdd_timestep_t);
     }
     partial_mdd
+}
+
+const CARDINAL_CACHE: usize = 1000;
+
+#[cached(
+    type = "SizedCache<u64, Option<collision::Collision>>",
+    create = "{ SizedCache::with_size(CARDINAL_CACHE) }",
+    convert = "{ mdd1.hash ^ mdd2.hash }",
+    sync_writes = true
+)]
+pub fn find_cardinal_conflict(
+    mdd1: &Mdd,
+    mdd2: &Mdd,
+    agent1: u8,
+    agent2: u8,
+) -> Option<collision::Collision> {
+    // Find the first cardinal conflicts and return it.
+    let min_timestep = min(mdd1.mdd.len(), mdd2.mdd.len());
+    for i in 0..min_timestep {
+        let layer1 = &mdd1.mdd[i];
+        let layer2 = &mdd2.mdd[i];
+        let edge1 = layer1[0];
+        let edge2 = layer2[0];
+        if layer1.len() == 1 && layer2.len() == 1 && edge1.0 == edge2.1 && edge1.1 == edge2.0 {
+            return Some(collision::Collision::new(
+                agent1,
+                agent2,
+                location::Location::new(edge1),
+                (i + 1) as u16,
+                cardinal::Cardinal::Full,
+            ));
+        }
+        let vertex1: HashSet<vertex::Vertex> = layer1.iter().map(|edge| edge.1).collect();
+        let vertex2: HashSet<vertex::Vertex> = layer2.iter().map(|edge| edge.1).collect();
+        if vertex1.len() == 1 && vertex2.len() == 1 && vertex1 == vertex2 {
+            return Some(collision::Collision::new(
+                agent1,
+                agent2,
+                location::Location::new(layer1[0].1),
+                (i + 1) as u16,
+                cardinal::Cardinal::Full,
+            ));
+        }
+    }
+    find_extended_mdd_conflict(mdd1, mdd2, agent1, agent2)
+}
+
+#[cached(
+    type = "SizedCache<u64, bool>",
+    create = "{ SizedCache::with_size(CARDINAL_CACHE) }",
+    convert = "{ mdd1.hash ^ mdd2.hash }",
+    sync_writes = true
+)]
+pub fn find_dependency_conflict(mdd1: &Mdd, mdd2: &Mdd, agent1: u8, agent2: u8) -> bool {
+    let mut joint_mdd: HashSet<(usize, vertex::Vertex, vertex::Vertex)> = HashSet::new();
+    joint_mdd.insert((0, mdd1.mdd[0][0].0, mdd2.mdd[0][0].0));
+    let min_timestep = min(mdd1.mdd.len(), mdd2.mdd.len());
+    for i in 0..min_timestep {
+        let layer1 = &mdd1.mdd[i];
+        let layer2 = &mdd2.mdd[i];
+        let mut is_dependent = true;
+        for edge1 in layer1 {
+            for edge2 in layer2 {
+                if joint_mdd.get(&(i, edge1.0, edge2.0)).is_none() {
+                    continue;
+                }
+                if (edge1.1 == edge2.1) || (edge1.0 == edge2.1 && edge1.1 == edge2.0) {
+                    // Vertex or edge dependency conflict
+                    continue;
+                }
+                joint_mdd.insert((i + 1, edge1.1, edge2.1));
+                is_dependent = false;
+            }
+        }
+        if is_dependent {
+            return true;
+        }
+    }
+    find_extended_mdd_conflict(mdd1, mdd2, agent1, agent2).is_some()
+}
+
+fn find_extended_mdd_conflict(
+    mdd1: &Mdd,
+    mdd2: &Mdd,
+    agent1: u8,
+    agent2: u8,
+) -> Option<collision::Collision> {
+    if mdd1.mdd.len() == mdd2.mdd.len() {
+        return None;
+    }
+    let start_time = min(mdd1.mdd.len(), mdd2.mdd.len());
+    let mdd;
+    let other_vertex: vertex::Vertex;
+    if mdd1.mdd.len() > mdd2.mdd.len() {
+        mdd = mdd1;
+        other_vertex = mdd2.mdd[start_time - 1].last().unwrap().1;
+    } else {
+        mdd = mdd2;
+        other_vertex = mdd1.mdd[start_time - 1].last().unwrap().1;
+    }
+    for (i, v) in mdd.mdd[start_time..].iter().enumerate() {
+        if v.len() == 1 && v[0].1 == other_vertex {
+            return Some(collision::Collision::new(
+                agent1,
+                agent2,
+                location::Location::new(other_vertex),
+                (start_time + i + 1) as u16,
+                cardinal::Cardinal::Full,
+            ));
+        }
+    }
+    None
 }
