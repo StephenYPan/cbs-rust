@@ -32,10 +32,10 @@ fn detect_cardinal_conflicts(collisions: &mut [collision::Collision], mdds: &[md
         if let Some(mut cardinal_conflict) =
             mdd::find_cardinal_conflict(&mdds[a1], &mdds[a2], a1 as u8, a2 as u8)
         {
-            // NOTE: The return value is cached so we need to adjust the
-            // conflict agents such that recursive calls to cbs is satisfied
-            // and conflicts discovered by the parent is not the cache value
-            // from the recursive call.
+            // NOTE: The return value may be from cache. To account for the possibility
+            // the recursive call of CBS may have generated the cached value we need to
+            // adjust the return value's agent 1 and 2 to match the present conflicting
+            // agent 1 and 2.
             cardinal_conflict.a1 = collision.a1;
             cardinal_conflict.a2 = collision.a2;
             conflict_index.push(i);
@@ -382,9 +382,18 @@ pub fn cbs(
                 .collect();
             let mut new_paths = cur_node.paths.clone();
             let min_path_length = match new_constraint.cardinal {
-                cardinal::Cardinal::Full | cardinal::Cardinal::Semi => {
-                    // Force the agent to increase its path length by 1 in cases where constraint
-                    // is negative. In positive cases the agent path length will stay the same.
+                cardinal::Cardinal::Full => {
+                    if new_constraint.is_positive {
+                        new_paths[constraint_agent].len() - 1
+                    } else if new_constraint.is_edge {
+                        // Edge collisions requires 2 additional moves to resolve
+                        new_paths[constraint_agent].len() + 1
+                    } else {
+                        new_paths[constraint_agent].len()
+                    }
+                }
+                cardinal::Cardinal::Semi => {
+                    // NOTE: Why can't the condition be constraint.is_positive?
                     if disjoint {
                         new_paths[constraint_agent].len() - 1
                     } else {
