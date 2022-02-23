@@ -10,3 +10,5 @@ edition = "2021"
 cached = "0.26"
 rayon = "1.5"
 clap = { version = "3.0.10", features = ["derive"] }
+# https://github.com/Amanieu/parking_lot    # mutex
+# https://github.com/crossbeam-rs/crossbeam # channels

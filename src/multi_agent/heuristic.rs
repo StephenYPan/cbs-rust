@@ -13,7 +13,12 @@ fn gospers_hack(set: i32) -> i32 {
     (((r ^ set) >> 2) / c) | r
 }
 
-fn is_vertex_cover(graph: &[Vec<u8>], num_vertices: usize, num_edges: usize, k: usize) -> bool {
+fn is_vertex_cover(
+    adj_matrix: &[Vec<u8>],
+    num_vertices: usize,
+    num_edges: usize,
+    k: usize,
+) -> bool {
     let mut set = (1 << k) - 1;
     let limit = 1 << num_vertices;
     while set < limit {
@@ -24,7 +29,7 @@ fn is_vertex_cover(graph: &[Vec<u8>], num_vertices: usize, num_edges: usize, k: 
         while k < limit {
             if (set & k) > 0 {
                 for j in 0..num_vertices {
-                    if visited[i][j] != graph[i][j] {
+                    if (visited[i][j] > 0) || adj_matrix[i][j] == 0 {
                         continue;
                     }
                     visited[i][j] = 1;
@@ -43,7 +48,7 @@ fn is_vertex_cover(graph: &[Vec<u8>], num_vertices: usize, num_edges: usize, k: 
     false
 }
 
-fn find_min_vertex_cover(graph: Vec<Vec<u8>>, num_vertices: usize, num_edges: usize) -> u16 {
+fn find_min_vertex_cover(adj_matrix: &[Vec<u8>], num_vertices: usize, num_edges: usize) -> u16 {
     if num_edges <= 1 {
         return num_edges as u16;
     }
@@ -51,7 +56,7 @@ fn find_min_vertex_cover(graph: Vec<Vec<u8>>, num_vertices: usize, num_edges: us
     let mut high = min(num_edges + 1, num_vertices);
     while low < high {
         let mid = (low + high) >> 1;
-        if is_vertex_cover(&graph, num_vertices, num_edges, mid) {
+        if is_vertex_cover(&adj_matrix, num_vertices, num_edges, mid) {
             high = mid;
         } else {
             low = mid + 1;
@@ -64,54 +69,117 @@ fn find_min_vertex_cover(graph: Vec<Vec<u8>>, num_vertices: usize, num_edges: us
 pub fn cg_heuristic(collisions: &[collision::Collision], mdds: &[mdd::Mdd]) -> u16 {
     let num_vertices = mdds.len();
     let mut num_edges: usize = 0;
-    let mut graph: Vec<Vec<u8>> = vec![vec![0; num_vertices]; num_vertices];
+    let mut adj_matrix: Vec<Vec<u8>> = vec![vec![0; num_vertices]; num_vertices];
     for collision in collisions {
         if collision.cardinal != cardinal::Cardinal::Full {
             continue;
         }
         let a1 = collision.a1 as usize;
         let a2 = collision.a2 as usize;
-        graph[a1][a2] = 1;
-        graph[a2][a1] = 1;
+        adj_matrix[a1][a2] = 1;
+        adj_matrix[a2][a1] = 1;
         num_edges += 1;
     }
-    find_min_vertex_cover(graph, num_vertices, num_edges)
+    find_min_vertex_cover(&adj_matrix, num_vertices, num_edges)
 }
 
 /// Calculate and generate a graph based only on full and semi cardinal conflicts.
 pub fn dg_heuristic(collisions: &[collision::Collision], mdds: &[mdd::Mdd]) -> u16 {
     let num_vertices = mdds.len();
     let mut num_edges: usize = 0;
-    let mut graph: Vec<Vec<u8>> = vec![vec![0; num_vertices]; num_vertices];
+    let mut adj_matrix: Vec<Vec<u8>> = vec![vec![0; num_vertices]; num_vertices];
     for collision in collisions {
         if collision.cardinal == cardinal::Cardinal::Non {
             continue;
         }
         let a1 = collision.a1 as usize;
         let a2 = collision.a2 as usize;
-        graph[a1][a2] = 1;
-        graph[a2][a1] = 1;
+        adj_matrix[a1][a2] = 1;
+        adj_matrix[a2][a1] = 1;
         num_edges += 1;
     }
-    find_min_vertex_cover(graph, num_vertices, num_edges)
+    find_min_vertex_cover(&adj_matrix, num_vertices, num_edges)
 }
 
-#[allow(unused)]
-fn find_min_edge_weight_min_vertex_cover(
-    graph: Vec<Vec<u8>>,
-    num_vertices: usize,
-    num_edges: usize,
-) -> u16 {
+/// Get disjoint subgraphs of a given graph.
+fn get_subgraph(adj_matrix: &[Vec<u8>]) -> Vec<Vec<u8>> {
+    let mut subgraph: Vec<Vec<u8>> = Vec::new();
+    let mut open_list: Vec<u8> = Vec::new();
+    let mut closed_list: Vec<bool> = vec![false; adj_matrix.len()];
+    for (i, row) in adj_matrix.iter().enumerate() {
+        if closed_list[i] {
+            continue;
+        }
+        closed_list[i] = true;
+        let mut group: Vec<u8> = vec![i as u8];
+        for (j, v) in row.iter().enumerate() {
+            // Only add dependent vertices
+            if *v > 0 {
+                open_list.push(j as u8);
+            }
+        }
+        while !open_list.is_empty() {
+            let next_v = open_list.pop().unwrap();
+            if closed_list[next_v as usize] {
+                continue;
+            }
+            closed_list[next_v as usize] = true;
+            group.push(next_v);
+            for (k, v) in adj_matrix[next_v as usize].iter().enumerate() {
+                // Only add dependent vertices
+                if *v > 0 {
+                    open_list.push(k as u8);
+                }
+            }
+        }
+        subgraph.push(group);
+    }
+    subgraph
+}
+
+fn find_min_weight_vertex_cover(adj_matrix: Vec<Vec<u8>>) -> u16 {
     // Gosper's hack
     // let mvc_set = find_min_vertex_cover(graph, num_vertices, num_edges);
-    // TODO: Convert graph into adjacency list to separate the disjoint subgraphs.
     // Allow each subgraph to calculate its own min edge weight mvc, and sum up
     // the returned results.
-
-    0
+    let graph = get_subgraph(&adj_matrix);
+    let mut result = 0;
+    for subgraph in graph {
+        match subgraph.len() {
+            2 => result += adj_matrix[subgraph[0] as usize][subgraph[1] as usize] as u16,
+            n if n > 2 => {
+                // TODO: spawn a thread and join after for loop.
+                // TODO: create a smaller adj_matrix with the original adj_matrix
+                let mut sub_num_edges = 0;
+                let mut sub_adj_matrix: Vec<Vec<u8>> = vec![vec![0; n]; n];
+                for (i, agent1) in subgraph[0..n - 1].iter().enumerate() {
+                    for (j, agent2) in subgraph[i..].iter().enumerate() {
+                        let edge_weight = adj_matrix[*agent1 as usize][*agent2 as usize];
+                        sub_adj_matrix[i][j + i] = edge_weight;
+                        sub_adj_matrix[j + i][i] = edge_weight;
+                        if edge_weight > 0 {
+                            sub_num_edges += 1;
+                        }
+                    }
+                }
+                for row in &sub_adj_matrix {
+                    println!("{:?}", row);
+                }
+                println!();
+                let mvc = find_min_vertex_cover(&sub_adj_matrix, n, sub_num_edges);
+                if mvc == 1 {
+                    let max = *sub_adj_matrix.iter().flat_map(|v| v.iter()).max().unwrap();
+                    result += max as u16;
+                } else {
+                    // TODO: search for mwvc
+                }
+            }
+            _ => {}
+        }
+    }
+    result
 }
 
-#[allow(unused)]
 /// Generate a graph based only on full and semi cardinal conflicts, then run cbs
 /// on the conflicting agents to generate the edge cost. If no solution is found
 /// between the two conflicting agents, then the edge cost is defaulted to 1.
@@ -123,10 +191,10 @@ pub fn wdg_heuristic(
 ) -> u16 {
     let num_vertices = mdds.len();
     // num_edges and graph are shared variables, should be atomic
-    let mut num_edges: usize = 0;
-    let mut graph: Vec<Vec<u8>> = vec![vec![0; num_vertices]; num_vertices];
+    // let mut num_edges: usize = 0;
+    let mut adj_matrix: Vec<Vec<u8>> = vec![vec![0; num_vertices]; num_vertices];
 
-    // TODO: Parallelize this search
+    // TODO: Parallelize this, each cbs should be in different threads.
     for collision in collisions {
         if collision.cardinal == cardinal::Cardinal::Non {
             continue;
@@ -163,26 +231,21 @@ pub fn wdg_heuristic(
                 let path_len2 = mdds[a2].mdd.len();
                 let new_path_len1 = paths[0].len() - 1;
                 let new_path_len2 = paths[1].len() - 1;
-                let mut edge_weight = max(
+                let edge_weight = max(
                     new_path_len1.saturating_sub(path_len1),
                     new_path_len2.saturating_sub(path_len2),
                 );
                 // NOTE: Is this optimal? If the path cost stayed the same, should
                 // we exclude it from the heuristics?
                 // edge_weight = max(edge_weight, 1);
-                graph[a1][a2] = edge_weight as u8;
-                graph[a2][a1] = edge_weight as u8;
-                if edge_weight != 0 {
-                    num_edges += 1;
-                }
+                adj_matrix[a1][a2] = edge_weight as u8;
+                adj_matrix[a2][a1] = edge_weight as u8;
             }
             None => {
-                graph[a1][a2] = 1;
-                graph[a2][a1] = 1;
-                num_edges += 1;
+                adj_matrix[a1][a2] = 1;
+                adj_matrix[a2][a1] = 1;
             }
         }
-        // num_edges += 1;
     }
-    find_min_edge_weight_min_vertex_cover(graph, num_vertices, num_edges)
+    find_min_weight_vertex_cover(adj_matrix)
 }

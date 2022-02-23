@@ -324,10 +324,11 @@ pub fn cbs(
             // Solution found
             let elapsed_time = now.elapsed();
             if !child_process {
-                println!("\nCPU time: {:>17?}", elapsed_time);
-                println!("Mdd build time: {:>11?}", mdd_time);
-                println!("Heuristic time: {:>11?}", heuristic_time);
+                println!("\nCPU time: {:>16.4?}", elapsed_time);
+                println!("Mdd build time: {:>10.4?}", mdd_time);
+                println!("Heuristic time: {:>10.4?}", heuristic_time);
                 println!("Cost: {}", cur_node.g_val);
+                println!("Num constraints: {}", cur_node.constraints.len());
                 println!("Nodes expanded:  {}", pop_counter);
                 println!("Nodes generated: {}", push_counter);
             }
