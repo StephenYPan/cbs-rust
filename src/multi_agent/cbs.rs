@@ -313,7 +313,7 @@ pub fn cbs(
         pop_counter += 1;
         if !child_process {
             println!(
-                "pop: [f-val: {}, g-val: {}, h-val: {}, num_col: {:2}]",
+                "pop: [f-val: {}, g-val: {}, h-val: {}, num_col: {}]",
                 cur_node.g_val.saturating_add(cur_node.h_val),
                 cur_node.g_val,
                 cur_node.h_val,
@@ -344,12 +344,12 @@ pub fn cbs(
         let mut attempt_bypass = true;
         for collision in &cur_node.collisions {
             match collision.cardinal {
-                cardinal::Cardinal::Full | cardinal::Cardinal::Semi => {
+                cardinal::Cardinal::Full => {
                     cur_collision = *collision;
                     attempt_bypass = false;
                     break;
                 }
-                cardinal::Cardinal::Non => {}
+                cardinal::Cardinal::Semi | cardinal::Cardinal::Non => {}
             }
         }
         if attempt_bypass {
@@ -531,7 +531,13 @@ impl Ord for Node {
         let other_f_val = other.g_val.saturating_add(other.h_val);
         if f_val == other_f_val {
             // Tie-breaking method
-            self.collisions.len().cmp(&other.collisions.len()).reverse()
+            // 1) h-value
+            // 2) # of collisions
+            if self.h_val != other.h_val {
+                self.h_val.cmp(&other.h_val).reverse()
+            } else {
+                self.collisions.len().cmp(&other.collisions.len()).reverse()
+            }
         } else {
             f_val.cmp(&other_f_val).reverse()
         }

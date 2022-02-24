@@ -274,8 +274,8 @@ pub fn wdg_heuristic(
         let paths = cbs::cbs(
             &sub_map_instance,
             Some(sub_constraints),
-            true,
-            true,
+            true, // child process
+            true, // disjoint
             heuristics,
         );
         match paths {
