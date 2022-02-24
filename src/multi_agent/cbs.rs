@@ -314,7 +314,7 @@ pub fn cbs(
         if !child_process {
             println!(
                 "pop: [f-val: {}, g-val: {}, h-val: {}, num_col: {:2}]",
-                cur_node.g_val + cur_node.h_val,
+                cur_node.g_val.saturating_add(cur_node.h_val),
                 cur_node.g_val,
                 cur_node.h_val,
                 cur_node.collisions.len()
@@ -386,9 +386,6 @@ pub fn cbs(
                 cardinal::Cardinal::Full => {
                     if new_constraint.is_positive {
                         new_paths[constraint_agent].len() - 1
-                    } else if new_constraint.is_edge {
-                        // Edge collisions requires 2 additional moves to resolve
-                        new_paths[constraint_agent].len() + 1
                     } else {
                         new_paths[constraint_agent].len()
                     }
@@ -530,8 +527,8 @@ impl PartialEq for Node {
 
 impl Ord for Node {
     fn cmp(&self, other: &Self) -> Ordering {
-        let f_val = self.g_val + self.h_val;
-        let other_f_val = other.g_val + other.h_val;
+        let f_val = self.g_val.saturating_add(self.h_val);
+        let other_f_val = other.g_val.saturating_add(other.h_val);
         if f_val == other_f_val {
             // Tie-breaking method
             self.collisions.len().cmp(&other.collisions.len()).reverse()
