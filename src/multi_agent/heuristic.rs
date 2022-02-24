@@ -56,7 +56,7 @@ fn find_min_vertex_cover(adj_matrix: &[Vec<u8>], num_vertices: usize, num_edges:
     let mut high = min(num_edges + 1, num_vertices);
     while low < high {
         let mid = (low + high) >> 1;
-        if is_vertex_cover(&adj_matrix, num_vertices, num_edges, mid) {
+        if is_vertex_cover(adj_matrix, num_vertices, num_edges, mid) {
             high = mid;
         } else {
             low = mid + 1;
@@ -143,13 +143,15 @@ fn find_min_weight_vertex_cover(adj_matrix: Vec<Vec<u8>>) -> u16 {
     // Allow each subgraph to calculate its own min edge weight mvc, and sum up
     // the returned results.
     let graph = get_subgraph(&adj_matrix);
-    let mut result = 0;
+    let mut result: u16 = 0; // ATOMIC VARIABLE if threads are used
     for subgraph in graph {
         match subgraph.len() {
-            2 => result += adj_matrix[subgraph[0] as usize][subgraph[1] as usize] as u16,
+            2 => {
+                let edge_weight = adj_matrix[subgraph[0] as usize][subgraph[1] as usize] as u16;
+                result = result.saturating_add(edge_weight);
+            }
             n if n > 2 => {
                 // TODO: spawn a thread and join after for loop.
-                // TODO: create a smaller adj_matrix with the original adj_matrix
                 let mut sub_num_edges = 0;
                 let mut sub_adj_matrix: Vec<Vec<u8>> = vec![vec![0; n]; n];
                 for (i, agent1) in subgraph[0..n - 1].iter().enumerate() {
@@ -162,16 +164,69 @@ fn find_min_weight_vertex_cover(adj_matrix: Vec<Vec<u8>>) -> u16 {
                         }
                     }
                 }
-                for row in &sub_adj_matrix {
-                    println!("{:?}", row);
-                }
-                println!();
                 let mvc = find_min_vertex_cover(&sub_adj_matrix, n, sub_num_edges);
                 if mvc == 1 {
-                    let max = *sub_adj_matrix.iter().flat_map(|v| v.iter()).max().unwrap();
-                    result += max as u16;
+                    let max = *sub_adj_matrix.iter().flat_map(|v| v.iter()).max().unwrap() as u16;
+                    result = result.saturating_add(max);
                 } else {
-                    // TODO: search for mwvc
+                    // Find mwvc through exhaustive search
+                    let mut min_weight = u16::MAX;
+                    let mut set = (1 << mvc) - 1;
+                    let limit = 1 << n;
+                    while set < limit {
+                        let mut visited: Vec<Vec<u8>> = vec![vec![0; n]; n];
+                        let mut num_edges_visited = 0;
+                        let mut k = 1;
+                        let mut i = 0;
+                        while k < limit {
+                            if (set & k) > 0 {
+                                for j in 0..n {
+                                    if (visited[i][j] > 0) || sub_adj_matrix[i][j] == 0 {
+                                        continue;
+                                    }
+                                    visited[i][j] = 1;
+                                    visited[j][i] = 1;
+                                    num_edges_visited += 1;
+                                }
+                            }
+                            k <<= 1;
+                            i += 1;
+                        }
+                        if num_edges_visited == sub_num_edges {
+                            let mut min_cover_agents: Vec<usize> = Vec::with_capacity(n);
+                            for (i, c) in format!("{:b}", set).chars().rev().enumerate() {
+                                // Get the corresponding agents that are the mvc
+                                if c == '1' {
+                                    min_cover_agents.push(i);
+                                }
+                            }
+                            // Find the min weight vertex cover
+                            let mut vertex_weights: Vec<u8> = vec![0; n];
+                            for v in &min_cover_agents {
+                                for u in 0..n {
+                                    if min_cover_agents.contains(&u) {
+                                        continue;
+                                    }
+                                    let edge_weight = sub_adj_matrix[*v][u];
+                                    vertex_weights[*v] = edge_weight;
+                                }
+                            }
+                            for v in &min_cover_agents {
+                                let v_weight = vertex_weights[*v];
+                                for u in &min_cover_agents {
+                                    let edge_weight = sub_adj_matrix[*v][*u];
+                                    let u_weight = vertex_weights[*u];
+                                    if v_weight + u_weight >= edge_weight {
+                                        continue;
+                                    }
+                                    vertex_weights[*v] += edge_weight - (v_weight + u_weight);
+                                }
+                            }
+                            min_weight = min(min_weight, vertex_weights.iter().sum::<u8>() as u16);
+                        }
+                        set = gospers_hack(set);
+                    }
+                    result = result.saturating_add(min_weight);
                 }
             }
             _ => {}
