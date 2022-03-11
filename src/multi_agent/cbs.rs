@@ -279,13 +279,13 @@ pub fn cbs(
     let root_g_val = get_sum_cost(&root_paths);
     let heuristic_now = Instant::now();
     let root_h_val = match heuristics.as_slice() {
-        [true, false, false] => heuristic::cg_heuristic(&root_collisions, &root_mdds),
-        [_, true, false] => heuristic::dg_heuristic(&root_collisions, &root_mdds),
+        [true, false, false] => heuristic::cg_heuristic(&root_collisions, num_agents),
+        [_, true, false] => heuristic::dg_heuristic(&root_collisions, num_agents),
         [_, _, true] => heuristic::wdg_heuristic(
             map_instance,
             &root_constraints,
             &root_collisions,
-            &root_mdds,
+            root_mdds.clone(),
         ),
         _ => 0,
     };
@@ -475,13 +475,13 @@ pub fn cbs(
             let new_g_val = get_sum_cost(&new_paths);
             let heuristic_now = Instant::now();
             let new_h_val = match heuristics.as_slice() {
-                [true, false, false] => heuristic::cg_heuristic(&new_collisions, &new_mdds),
-                [_, true, false] => heuristic::dg_heuristic(&new_collisions, &new_mdds),
+                [true, false, false] => heuristic::cg_heuristic(&new_collisions, num_agents),
+                [_, true, false] => heuristic::dg_heuristic(&new_collisions, num_agents),
                 [_, _, true] => heuristic::wdg_heuristic(
                     map_instance,
                     &new_constraints,
                     &new_collisions,
-                    &new_mdds,
+                    new_mdds.clone(),
                 ),
                 _ => 0,
             };
