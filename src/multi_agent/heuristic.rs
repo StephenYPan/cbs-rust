@@ -5,6 +5,14 @@ use std::cmp::{max, min};
 use std::sync::{Arc, Mutex};
 use std::thread;
 
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+pub enum Heuristic {
+    Cg,
+    Dg,
+    Wdg,
+    None,
+}
+
 /// Get next bit permutation of greater value from the given set.
 fn gospers_hack(set: i32) -> i32 {
     // Gosper's hack

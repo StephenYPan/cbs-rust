@@ -276,25 +276,51 @@ pub fn cbs(
     };
     let mut root_collisions = detect_collisions(&root_paths);
     detect_cardinal_conflicts(&mut root_collisions, &root_mdds);
+
+    let mut lazy_heuristic: Vec<heuristic::Heuristic> = vec![heuristic::Heuristic::None];
+    if heuristics.iter().filter(|&h| *h).count() > 1 {
+        for (i, h) in heuristics.iter().enumerate().rev() {
+            if *h {
+                match i {
+                    2 => lazy_heuristic[0] = heuristic::Heuristic::Wdg,
+                    1 => lazy_heuristic[0] = heuristic::Heuristic::Dg,
+                    0 => lazy_heuristic[0] = heuristic::Heuristic::Cg,
+                    _ => {}
+                }
+                break;
+            }
+        }
+    }
+
     let root_g_val = get_sum_cost(&root_paths);
     let heuristic_now = Instant::now();
-    let root_h_val = match heuristics.as_slice() {
-        [true, false, false] => heuristic::cg_heuristic(&root_collisions, num_agents),
-        [_, true, false] => heuristic::dg_heuristic(&root_collisions, num_agents),
-        [_, _, true] => heuristic::wdg_heuristic(
-            map_instance,
-            &root_constraints,
-            &root_collisions,
-            root_mdds.clone(),
+    let root_h: (heuristic::Heuristic, u16) = match heuristics.as_slice() {
+        [true, false, false] => (
+            heuristic::Heuristic::Cg,
+            heuristic::cg_heuristic(&root_collisions, num_agents),
         ),
-        _ => 0,
+        [_, true, false] => (
+            heuristic::Heuristic::Dg,
+            heuristic::dg_heuristic(&root_collisions, num_agents),
+        ),
+        [_, _, true] => (
+            heuristic::Heuristic::Wdg,
+            heuristic::wdg_heuristic(
+                map_instance,
+                &root_constraints,
+                &root_collisions,
+                root_mdds.clone(),
+            ),
+        ),
+        _ => (heuristic::Heuristic::None, 0),
     };
     heuristic_time += heuristic_now.elapsed();
 
     // Move all the variables inside the node.
     let root = Node::new(
         root_g_val,
-        root_h_val,
+        root_h.0,
+        root_h.1,
         root_paths,
         root_constraints,
         root_collisions,
@@ -334,7 +360,31 @@ pub fn cbs(
             }
             return Some(cur_node.paths);
         }
-        // TODO: Lazy heuristics
+
+        // Lazy heuristic
+        if lazy_heuristic[0] != heuristic::Heuristic::None && cur_node.h_type != lazy_heuristic[0] {
+            let heuristic_now = Instant::now();
+            cur_node.h_type = lazy_heuristic[0];
+            cur_node.h_val = match lazy_heuristic[0] {
+                heuristic::Heuristic::Cg => {
+                    heuristic::cg_heuristic(&cur_node.collisions, num_agents)
+                }
+                heuristic::Heuristic::Dg => {
+                    heuristic::dg_heuristic(&cur_node.collisions, num_agents)
+                }
+                heuristic::Heuristic::Wdg => heuristic::wdg_heuristic(
+                    map_instance,
+                    &cur_node.constraints,
+                    &cur_node.collisions,
+                    cur_node.mdds.clone(),
+                ),
+                _ => 0,
+            };
+            heuristic_time += heuristic_now.elapsed();
+            open_list.push(cur_node);
+            pop_counter -= 1;
+            continue;
+        }
 
         // TODO: Meta-agent
 
@@ -474,23 +524,33 @@ pub fn cbs(
             detect_cardinal_conflicts(&mut new_collisions, &new_mdds);
             let new_g_val = get_sum_cost(&new_paths);
             let heuristic_now = Instant::now();
-            let new_h_val = match heuristics.as_slice() {
-                [true, false, false] => heuristic::cg_heuristic(&new_collisions, num_agents),
-                [_, true, false] => heuristic::dg_heuristic(&new_collisions, num_agents),
-                [_, _, true] => heuristic::wdg_heuristic(
-                    map_instance,
-                    &new_constraints,
-                    &new_collisions,
-                    new_mdds.clone(),
+            let new_h: (heuristic::Heuristic, u16) = match heuristics.as_slice() {
+                [true, _, _] => (
+                    heuristic::Heuristic::Cg,
+                    heuristic::cg_heuristic(&new_collisions, num_agents),
                 ),
-                _ => 0,
+                [_, true, _] => (
+                    heuristic::Heuristic::Dg,
+                    heuristic::dg_heuristic(&new_collisions, num_agents),
+                ),
+                [_, _, true] => (
+                    heuristic::Heuristic::Wdg,
+                    heuristic::wdg_heuristic(
+                        map_instance,
+                        &new_constraints,
+                        &new_collisions,
+                        new_mdds.clone(),
+                    ),
+                ),
+                _ => (heuristic::Heuristic::None, 0),
             };
             heuristic_time += heuristic_now.elapsed();
 
             // Move all the variables inside the node.
             let new_node = Node::new(
                 new_g_val,
-                new_h_val,
+                new_h.0,
+                new_h.1,
                 new_paths,
                 new_constraints,
                 new_collisions,
@@ -508,6 +568,7 @@ use std::cmp::Ordering;
 #[derive(Debug, Eq)]
 struct Node {
     pub g_val: u16,
+    pub h_type: heuristic::Heuristic,
     pub h_val: u16,
     pub paths: Vec<Vec<vertex::Vertex>>,
     pub constraints: Vec<constraint::Constraint>,
@@ -553,6 +614,7 @@ impl PartialOrd for Node {
 impl Node {
     pub fn new(
         g_val: u16,
+        h_type: heuristic::Heuristic,
         h_val: u16,
         paths: Vec<Vec<vertex::Vertex>>,
         constraints: Vec<constraint::Constraint>,
@@ -561,6 +623,7 @@ impl Node {
     ) -> Node {
         Node {
             g_val,
+            h_type,
             h_val,
             paths,
             constraints,
