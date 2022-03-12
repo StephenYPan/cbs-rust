@@ -407,7 +407,7 @@ pub fn cbs(
                 Some(collision) => cur_collision = collision,
                 None => {
                     open_list.push(cur_node);
-                    push_counter += 1;
+                    pop_counter -= 1;
                     continue;
                 }
             };
