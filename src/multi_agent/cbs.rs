@@ -277,14 +277,14 @@ pub fn cbs(
     let mut root_collisions = detect_collisions(&root_paths);
     detect_cardinal_conflicts(&mut root_collisions, &root_mdds);
 
-    let mut lazy_heuristic: Vec<heuristic::Heuristic> = vec![heuristic::Heuristic::None];
+    let mut lazy_heuristic: heuristic::Heuristic = heuristic::Heuristic::None;
     if heuristics.iter().filter(|&h| *h).count() > 1 {
         for (i, h) in heuristics.iter().enumerate().rev() {
             if *h {
                 match i {
-                    2 => lazy_heuristic[0] = heuristic::Heuristic::Wdg,
-                    1 => lazy_heuristic[0] = heuristic::Heuristic::Dg,
-                    0 => lazy_heuristic[0] = heuristic::Heuristic::Cg,
+                    2 => lazy_heuristic = heuristic::Heuristic::Wdg,
+                    1 => lazy_heuristic = heuristic::Heuristic::Dg,
+                    0 => lazy_heuristic = heuristic::Heuristic::Cg,
                     _ => {}
                 }
                 break;
@@ -362,10 +362,10 @@ pub fn cbs(
         }
 
         // Lazy heuristic
-        if lazy_heuristic[0] != heuristic::Heuristic::None && cur_node.h_type != lazy_heuristic[0] {
+        if lazy_heuristic != heuristic::Heuristic::None && cur_node.h_type != lazy_heuristic {
             let heuristic_now = Instant::now();
-            cur_node.h_type = lazy_heuristic[0];
-            cur_node.h_val = match lazy_heuristic[0] {
+            cur_node.h_type = lazy_heuristic;
+            cur_node.h_val = match lazy_heuristic {
                 heuristic::Heuristic::Cg => {
                     heuristic::cg_heuristic(&cur_node.collisions, num_agents)
                 }
